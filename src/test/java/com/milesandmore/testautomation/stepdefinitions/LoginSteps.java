@@ -24,5 +24,12 @@ public class LoginSteps {
         System.out.println("User fail to login page");
         assertThat(true).isFalse(); // Simulating a failure for demonstration
 
+
+
     }
+    @Given("the wrong user is on the login page")
+    public void the_wrong_user_is_on_the_login_page() {
+        System.out.println("the wrong user is on the login page");
+    }
+
 }
