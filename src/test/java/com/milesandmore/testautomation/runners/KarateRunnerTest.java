@@ -11,8 +11,10 @@ import static io.cucumber.junit.platform.engine.Constants.PLUGIN_PROPERTY_NAME;
 @Suite
 @IncludeEngines("cucumber")
 @SelectPackages("features")
-@ConfigurationParameter(key = PLUGIN_PROPERTY_NAME, value = "pretty")
-@ConfigurationParameter(key = PLUGIN_PROPERTY_NAME, value = "json:target/cucumber/Cucumber.json")
+@ConfigurationParameter(key = PLUGIN_PROPERTY_NAME, value = "pretty," +
+        "html:target/cucumber-reports/html/report.html," +
+        "json:target/cucumber-reports/json/cucumber.json," +
+        "junit:target/cucumber-reports/junit/cucumber.xml")
 @ConfigurationParameter(key = GLUE_PROPERTY_NAME, value = "com.milesandmore.testautomation.stepdefinitions")
 public class KarateRunnerTest {
 }
