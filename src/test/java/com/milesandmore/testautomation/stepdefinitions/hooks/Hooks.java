@@ -3,13 +3,13 @@ package com.milesandmore.testautomation.stepdefinitions.hooks;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.chrome.ChromeDriver;
 import org.openqa.selenium.chrome.ChromeOptions;
+
 import io.cucumber.java.Before;
 import io.cucumber.java.After;
 import io.cucumber.java.Scenario;
 import org.openqa.selenium.OutputType;
 import org.openqa.selenium.TakesScreenshot;
 
-// Import WebDriverManager
 import io.github.bonigarcia.wdm.WebDriverManager;
 
 public class Hooks {
@@ -18,18 +18,17 @@ public class Hooks {
 
     @Before
     public void setup() {
-        // --- WebDriverManager handles downloading and setting the path ---
-        WebDriverManager.chromedriver().setup(); // This line replaces System.setProperty() and manual download
+        WebDriverManager.chromedriver().setup();
 
         ChromeOptions options = new ChromeOptions();
 
-        // Essential arguments for headless execution and containerized environments
         options.addArguments("--headless=new");
         options.addArguments("--no-sandbox");
         options.addArguments("--disable-dev-shm-usage");
         options.addArguments("--disable-gpu");
         options.addArguments("--disable-extensions");
-        options.addArguments("--disable-web-security");
+        // Use --disable-web-security only if absolutely necessary, as it can hide actual browser security issues.
+        // options.addArguments("--disable-web-security");
         options.addArguments("--remote-debugging-port=9222");
         options.addArguments("--window-size=1920,1080");
         options.addArguments("--disable-background-timer-throttling");
@@ -37,10 +36,11 @@ public class Hooks {
         options.addArguments("--disable-renderer-backgrounding");
         options.addArguments("--disable-background-networking");
         options.addArguments("--disable-ipc-flooding-protection");
-        options.addArguments("--start-maximized"); // Maximize is for visible browser, but often harmless in headless
+        // --start-maximized has no effect in headless mode, can be removed for cleaner code
+        // options.addArguments("--start-maximized");
 
         try {
-            driver = new ChromeDriver(options);
+            driver = new ChromeDriver(options); // Initialize ChromeDriver once
         } catch (Exception e) {
             System.err.println("Failed to initialize ChromeDriver: " + e.getMessage());
             e.printStackTrace();
