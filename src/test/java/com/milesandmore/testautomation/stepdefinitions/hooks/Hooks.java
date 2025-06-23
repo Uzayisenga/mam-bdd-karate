@@ -21,29 +21,28 @@ public class Hooks {
         WebDriverManager.chromedriver().setup();
 
         ChromeOptions options = new ChromeOptions();
-        ChromeDriver driver = new ChromeDriver(options);
-        options.addArguments("--headless=new");
-        options.addArguments("--no-sandbox");
-        options.addArguments("--headless");
-        options.addArguments("--disable-dev-shm-usage");
-        options.addArguments("--disable-gpu");
-        options.addArguments("--disable-extensions");
-        // Use --disable-web-security only if absolutely necessary, as it can hide actual browser security issues.
-        // options.addArguments("--disable-web-security");
-        options.addArguments("--remote-debugging-port=9222");
+
+        // Detect CI or local environment
+        boolean isCI = System.getenv("CI") != null || System.getenv("JENKINS_HOME") != null;
+
+        if (isCI) {
+            options.addArguments("--headless"); // Use headless only in CI
+            options.addArguments("--disable-gpu");
+        }
+
         options.addArguments("--window-size=1920,1080");
-        options.addArguments("--disable-background-timer-throttling");
-        options.addArguments("--disable-backgrounding-occluded-windows");
-        options.addArguments("--disable-renderer-backgrounding");
-        options.addArguments("--disable-background-networking");
-        options.addArguments("--disable-ipc-flooding-protection");
-        // --start-maximized has no effect in headless mode, can be removed for cleaner code
-        // options.addArguments("--start-maximized");
+        options.addArguments("--no-sandbox");
+        options.addArguments("--disable-dev-shm-usage");
+        options.addArguments("--disable-extensions");
+        options.addArguments("--disable-software-rasterizer");
+        options.setExperimentalOption("useAutomationExtension", false);
+        options.setExperimentalOption("excludeSwitches", new String[]{"enable-automation"});
 
         try {
-            driver = new ChromeDriver(options); // Initialize ChromeDriver once
+            driver = new ChromeDriver(options);
+            System.out.println("✅ ChromeDriver initialized successfully.");
         } catch (Exception e) {
-            System.err.println("Failed to initialize ChromeDriver: " + e.getMessage());
+            System.err.println("❌ Failed to initialize ChromeDriver: " + e.getMessage());
             e.printStackTrace();
             throw new RuntimeException("Chrome driver initialization failed", e);
         }
@@ -52,26 +51,27 @@ public class Hooks {
     @After
     public void tearDown(Scenario scenario) {
         if (driver != null) {
-            // Take screenshot for failed scenarios
             if (scenario.isFailed()) {
                 try {
                     if (driver instanceof TakesScreenshot) {
                         byte[] screenshot = ((TakesScreenshot) driver).getScreenshotAs(OutputType.BYTES);
                         scenario.attach(screenshot, "image/png", "Screenshot");
-                        System.out.println("✅ Screenshot attached successfully for failed scenario: " + scenario.getName());
+                        System.out.println("✅ Screenshot attached for failed scenario: " + scenario.getName());
                     } else {
-                        System.err.println("❌ Driver instance does not support taking screenshots.");
+                        System.err.println("⚠️ WebDriver does not support screenshots.");
                     }
                 } catch (Exception e) {
                     System.err.println("❌ Failed to attach screenshot: " + e.getMessage());
-                    e.printStackTrace();
                 }
             }
 
             try {
                 driver.quit();
+                System.out.println("🧹 WebDriver session closed.");
             } catch (Exception e) {
-                System.err.println("Error closing driver: " + e.getMessage());
+                System.err.println("⚠️ Error closing WebDriver: " + e.getMessage());
+            } finally {
+                driver = null;
             }
         }
     }
