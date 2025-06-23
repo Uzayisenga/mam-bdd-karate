@@ -21,9 +21,10 @@ public class Hooks {
         WebDriverManager.chromedriver().setup();
 
         ChromeOptions options = new ChromeOptions();
-
+        ChromeDriver driver = new ChromeDriver(options);
         options.addArguments("--headless=new");
         options.addArguments("--no-sandbox");
+        options.addArguments("--headless");
         options.addArguments("--disable-dev-shm-usage");
         options.addArguments("--disable-gpu");
         options.addArguments("--disable-extensions");
