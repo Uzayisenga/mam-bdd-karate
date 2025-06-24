@@ -26,6 +26,7 @@ public class Hooks {
 
         ChromeOptions options = new ChromeOptions();
 
+
         // CI/Container environment detection
         boolean isCI = System.getenv("CI") != null ||
                 System.getenv("JENKINS_HOME") != null ||

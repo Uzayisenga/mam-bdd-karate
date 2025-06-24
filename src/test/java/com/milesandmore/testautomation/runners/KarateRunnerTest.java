@@ -1,3 +1,7 @@
+package com.milesandmore.testautomation.runners;
+import org.junit.platform.suite.api.ConfigurationParameter;
+import org.junit.platform.suite.api.IncludeEngines;
+import org.junit.platform.suite.api.SelectPackages;
 import org.junit.platform.suite.api.Suite;
 import com.intuit.karate.junit5.Karate;
 
