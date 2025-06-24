@@ -15,9 +15,11 @@ import org.openqa.selenium.TakesScreenshot;
 import io.github.bonigarcia.wdm.WebDriverManager;
 
 import java.io.BufferedReader;
+import java.io.ByteArrayOutputStream; // For capturing logs
 import java.io.FileReader;
 import java.io.IOException;
-import java.lang.reflect.Field;
+import java.io.PrintStream; // For redirecting System.out/err
+import java.nio.charset.StandardCharsets; // For log encoding
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -27,6 +29,12 @@ import java.util.Map; // Import for Map type
 public class Hooks {
 
     public static WebDriver driver;
+
+    // --- New fields for capturing System.out and System.err ---
+    private ByteArrayOutputStream scenarioLogStream;
+    private PrintStream originalSystemOut;
+    private PrintStream originalSystemErr;
+    // --- End new fields ---
 
     @Before
     public void setup() {
@@ -60,6 +68,16 @@ public class Hooks {
         }
         System.out.println("===== Hooks.java Setup Debugging End =====\n");
         // --- END DEEP DEBUGGING OUTPUT ---
+
+        // --- Start capturing System.out/err for scenario logs ---
+        originalSystemOut = System.out;
+        originalSystemErr = System.err;
+        scenarioLogStream = new ByteArrayOutputStream();
+        PrintStream ps = new PrintStream(scenarioLogStream, true, StandardCharsets.UTF_8);
+        System.setOut(ps);
+        System.setErr(ps);
+        System.out.println("--- System.out/err redirected for scenario log capture ---");
+        // --- End capturing ---
 
 
         WebDriverManager.chromedriver().setup();
@@ -147,6 +165,27 @@ public class Hooks {
 
     @After
     public void tearDown(Scenario scenario) {
+        // --- Start restoring System.out/err and attaching logs ---
+        System.setOut(originalSystemOut); // Restore original System.out
+        System.setErr(originalSystemErr); // Restore original System.err
+        System.out.println("--- System.out/err restored ---");
+
+        if (scenario.isFailed()) {
+            try {
+                String logContent = scenarioLogStream.toString(StandardCharsets.UTF_8.name());
+                if (logContent != null && !logContent.isEmpty()) {
+                    scenario.attach(logContent.getBytes(StandardCharsets.UTF_8), "text/plain", "Scenario Log");
+                    System.out.println("📄 Scenario log attached successfully for failed scenario: " + scenario.getName());
+                } else {
+                    System.err.println("⚠️ Captured scenario log was empty for failed scenario: " + scenario.getName());
+                }
+            } catch (IOException e) {
+                System.err.println("ERROR: Could not get scenario log content: " + e.getMessage());
+                e.printStackTrace();
+            }
+        }
+        // --- End restoring and attaching logs ---
+
         if (driver != null) {
             if (scenario.isFailed()) {
                 try {
@@ -180,6 +219,8 @@ public class Hooks {
     }
 
     private void printSystemInfo() {
+        // When these methods are called, System.err is already redirected to scenarioLogStream.
+        // So, this output will be captured in the scenario log if the test fails.
         System.err.println("📋 System Info:");
         System.err.println("  - OS: " + System.getProperty("os.name"));
         System.err.println("  - OS Architecture: " + System.getProperty("os.arch"));
@@ -191,6 +232,8 @@ public class Hooks {
     }
 
     private void checkChromeBinary() {
+        // When these methods are called, System.err is already redirected to scenarioLogStream.
+        // So, this output will be captured in the scenario log if the test fails.
         String command = System.getProperty("os.name").toLowerCase().contains("win") ? "where chrome" : "which google-chrome || which chromium-browser || which chrome";
         try {
             ProcessBuilder pb;
