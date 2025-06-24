@@ -31,5 +31,23 @@ public class LoginSteps {
     public void the_wrong_user_is_on_the_login_page() {
         System.out.println("the wrong user is on the login page");
     }
+    @Given("url {string}")
+    public void url(String string) {
+        System.out.println("the wrong user is on the login page");
+    }
+    @Given("print {string}")
+    public void print(String string) {
+        System.out.println("the wrong user is on the login page");
+    }
+    @Given("def message = {string}")
+    public void def_message(String string) {
+        System.out.println("the wrong user is on the login page");
+    }
+    @Given("match message == {string}")
+    public void match_message(String string) {
+        System.out.println("the wrong user is on the login page");
+    }
+
+
 
 }
