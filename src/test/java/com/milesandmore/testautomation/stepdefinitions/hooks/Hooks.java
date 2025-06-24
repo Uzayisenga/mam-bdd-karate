@@ -3,6 +3,8 @@ package com.milesandmore.testautomation.stepdefinitions.hooks;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.chrome.ChromeDriver;
 import org.openqa.selenium.chrome.ChromeOptions;
+import org.openqa.selenium.Capabilities; // Import Capabilities
+import org.openqa.selenium.HasCapabilities; // Import HasCapabilities
 
 import io.cucumber.java.Before;
 import io.cucumber.java.After;
@@ -12,9 +14,15 @@ import org.openqa.selenium.TakesScreenshot;
 
 import io.github.bonigarcia.wdm.WebDriverManager;
 
+import java.io.BufferedReader;
+import java.io.FileReader;
 import java.io.IOException;
-import java.lang.reflect.Field; // Import for reflective access
+import java.lang.reflect.Field;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.List;
+import java.util.Map; // Import for Map type
 
 public class Hooks {
 
@@ -22,10 +30,41 @@ public class Hooks {
 
     @Before
     public void setup() {
+        // --- START DEEP DEBUGGING OUTPUT ---
+        System.out.println("\n===== Hooks.java Setup Debugging Start =====");
+        System.out.println("Current Working Directory: " + System.getProperty("user.dir"));
+        System.out.println("Java Version: " + System.getProperty("java.version"));
+        System.out.println("OS Name: " + System.getProperty("os.name"));
+
+        // Attempt to read and print the content of this very Hooks.java file
+        try {
+            Path hooksPath = Paths.get(System.getProperty("user.dir"),
+                    "src", "test", "java", "com", "milesandmore",
+                    "testautomation", "stepdefinitions", "hooks", "Hooks.java");
+            System.out.println("Attempting to read Hooks.java from: " + hooksPath.toAbsolutePath().toString());
+            if (Files.exists(hooksPath)) {
+                System.out.println("--- Content of Hooks.java (as seen by build agent) ---");
+                try (BufferedReader reader = new BufferedReader(new FileReader(hooksPath.toFile()))) {
+                    String line;
+                    while ((line = reader.readLine()) != null) {
+                        System.out.println(line);
+                    }
+                }
+                System.out.println("--- End Content of Hooks.java ---");
+            } else {
+                System.err.println("CRITICAL: Hooks.java file NOT FOUND at expected path: " + hooksPath.toAbsolutePath().toString());
+            }
+        } catch (IOException e) {
+            System.err.println("ERROR: Could not read Hooks.java file for debugging: " + e.getMessage());
+            e.printStackTrace();
+        }
+        System.out.println("===== Hooks.java Setup Debugging End =====\n");
+        // --- END DEEP DEBUGGING OUTPUT ---
+
+
         WebDriverManager.chromedriver().setup();
 
         ChromeOptions options = new ChromeOptions();
-
 
         // CI/Container environment detection
         boolean isCI = System.getenv("CI") != null ||
@@ -48,50 +87,61 @@ public class Hooks {
         options.addArguments("--remote-debugging-port=9222");
 
         // Optional user-data-dir (avoids permission issues in some CI setups)
-        // Ensure the directory is created if needed, or rely on Chrome to create it.
         String userDataDir = System.getProperty("java.io.tmpdir") + "/chrome_user_data_" + System.currentTimeMillis();
         options.addArguments("--user-data-dir=" + userDataDir);
 
         // Only add these in CI/container environments
         if (isCI) {
-            options.addArguments("--single-process"); // Can sometimes help in containers but might also hinder
+            options.addArguments("--single-process");
             options.addArguments("--disable-background-networking");
             options.addArguments("--disable-sync");
             options.addArguments("--metrics-recording-only");
             options.addArguments("--mute-audio");
             options.addArguments("--no-first-run");
             options.addArguments("--safebrowsing-disable-auto-update");
-            options.addArguments("--ignore-certificate-errors"); // Use with caution, can hide real issues
+            options.addArguments("--ignore-certificate-errors");
         }
 
         // Disable automation indicators
         options.setExperimentalOption("useAutomationExtension", false);
         options.setExperimentalOption("excludeSwitches", new String[]{"enable-automation"});
 
-        // Debug: Print ChromeOptions arguments
-        try {
-            Field argsField = ChromeOptions.class.getDeclaredField("args");
-            argsField.setAccessible(true);
-            @SuppressWarnings("unchecked")
-            List<String> args = (List<String>) argsField.get(options);
-            System.out.println("🚀 ChromeOptions arguments:");
-            args.forEach(arg -> System.out.println("  - " + arg));
-        } catch (NoSuchFieldException | IllegalAccessException e) {
-            System.err.println("⚠️ Could not reflectively access ChromeOptions arguments: " + e.getMessage());
-        }
-
         // Initialize the driver
         try {
             driver = new ChromeDriver(options);
-            // Set implicit waits and page load timeouts
             driver.manage().timeouts().implicitlyWait(java.time.Duration.ofSeconds(10));
             driver.manage().timeouts().pageLoadTimeout(java.time.Duration.ofSeconds(30));
             System.out.println("✅ ChromeDriver initialized successfully.");
+
+            // --- IMPROVED DEBUG: Print ACTUAL ChromeOptions arguments from the driver ---
+            // This is a more reliable way to get the options that were actually applied
+            // compared to reflecting on the ChromeOptions object directly.
+            if (driver instanceof HasCapabilities) { // Check if driver implements HasCapabilities
+                Capabilities capabilities = ((HasCapabilities) driver).getCapabilities();
+                if (capabilities.getCapability(ChromeOptions.CAPABILITY) instanceof Map) {
+                    @SuppressWarnings("unchecked")
+                    Map<String, Object> chromeOptionsMap = (Map<String, Object>) capabilities.getCapability(ChromeOptions.CAPABILITY);
+                    if (chromeOptionsMap != null && chromeOptionsMap.containsKey("args")) {
+                        @SuppressWarnings("unchecked")
+                        List<String> actualArgs = (List<String>) chromeOptionsMap.get("args");
+                        System.out.println("✅ ChromeOptions arguments (ACTUALLY APPLIED by driver):");
+                        actualArgs.forEach(arg -> System.out.println("  - " + arg));
+                    } else {
+                        System.err.println("⚠️ 'args' not found in ChromeOptions capabilities map.");
+                    }
+                } else {
+                    System.err.println("⚠️ ChromeOptions capability is not a Map in driver capabilities.");
+                }
+            } else {
+                System.err.println("⚠️ Driver instance does not implement HasCapabilities.");
+            }
+            // --- END IMPROVED DEBUG ---
+
         } catch (Exception e) {
             System.err.println("❌ Failed to initialize ChromeDriver: " + e.getMessage());
-            printSystemInfo(); // Helper method to print system details
-            checkChromeBinary(); // Helper method to check Chrome binary path
-            throw new RuntimeException("Chrome driver initialization failed", e); // Re-throw to fail the test
+            printSystemInfo();
+            checkChromeBinary();
+            throw new RuntimeException("Chrome driver initialization failed", e);
         }
     }
 
@@ -100,45 +150,35 @@ public class Hooks {
         if (driver != null) {
             if (scenario.isFailed()) {
                 try {
-                    // Check if the driver supports taking screenshots
                     if (driver instanceof TakesScreenshot) {
                         byte[] screenshot = ((TakesScreenshot) driver).getScreenshotAs(OutputType.BYTES);
-
-                        // --- NEW CHECK HERE ---
                         if (screenshot != null && screenshot.length > 0) {
                             scenario.attach(screenshot, "image/png", "Screenshot");
                             System.out.println("📸 Screenshot attached successfully for failed scenario: " + scenario.getName());
                         } else {
                             System.err.println("⚠️ Captured screenshot was null or empty for failed scenario: " + scenario.getName());
                         }
-                        // --- END NEW CHECK ---
                     } else {
                         System.err.println("❌ Driver instance does not support taking screenshots.");
                     }
                 } catch (Exception e) {
                     System.err.println("⚠️ Error capturing or attaching screenshot: " + e.getMessage());
-                    // Optionally, print stack trace for more details in case of exception during capture
                     e.printStackTrace();
                 }
             }
 
-            // Always attempt to quit the driver, even if screenshot failed,
-            // to ensure browser processes are terminated.
             try {
                 driver.quit();
                 System.out.println("🧹 WebDriver closed successfully.");
             } catch (Exception e) {
                 System.err.println("⚠️ Error closing WebDriver: " + e.getMessage());
-                e.printStackTrace(); // Print stack trace for debugging
+                e.printStackTrace();
             } finally {
-                driver = null; // Ensure the static driver reference is cleared
+                driver = null;
             }
         }
     }
 
-    /**
-     * Helper method to print system information for debugging purposes.
-     */
     private void printSystemInfo() {
         System.err.println("📋 System Info:");
         System.err.println("  - OS: " + System.getProperty("os.name"));
@@ -150,10 +190,6 @@ public class Hooks {
         System.err.println("  - Temp Directory: " + System.getProperty("java.io.tmpdir"));
     }
 
-    /**
-     * Helper method to check if Chrome binary is found in the system's PATH.
-     * This is useful for diagnosing 'Chrome failed to start' errors.
-     */
     private void checkChromeBinary() {
         String command = System.getProperty("os.name").toLowerCase().contains("win") ? "where chrome" : "which google-chrome || which chromium-browser || which chrome";
         try {
@@ -173,7 +209,6 @@ public class Hooks {
                 System.err.println("❌ Chrome binary NOT found in PATH. Please ensure Chrome is installed and its path is configured.");
             }
 
-            // Optionally, print the output of the command
             try (var reader = new java.io.BufferedReader(new java.io.InputStreamReader(process.getInputStream()))) {
                 String line;
                 System.err.println("--- Chrome Binary Check Output ---");
