@@ -53,8 +53,8 @@ public class LoginSteps {
 //   }
     @Given("{string} is enrolled via API")
     public void is_enrolled_via_api(String username, io.cucumber.datatable.DataTable dataTable) {
-    System.out.println("Enrolling user: " + username);
-    System.out.println("With details: " + userDetails);
+    System.out.println("Enrolling user: ");
+    System.out.println("With details: " );
     }
 
     @When("user logs in using {string}{string} in the login component appropriately in the MAM page")
