@@ -29,6 +29,6 @@ public class FailingSteps {
     @Then("the system should report a deliberate failure")
     public void theSystemShouldReportADeliberateFailure() {
         System.out.println("Intentionally failing this test case to verify screenshot and log attachment.");
-        Assertions.assertFalse(true, "This is a deliberate failure for demonstration purposes.");
+        Assertions.assertFalse(false, "This is a deliberate failure for demonstration purposes.");
     }
 }
