@@ -53,7 +53,7 @@ public class LoginSteps {
   }
     @Given("{string} is enrolled via API")
     public void is_enrolled_via_api(String username, io.cucumber.datatable.DataTable dataTable) {
-    Map<String, String> userDetails = dataTable.asMap(String.class, String.class);
+    
 
     System.out.println("Enrolling user: " + username);
     System.out.println("With details: " + userDetails);
