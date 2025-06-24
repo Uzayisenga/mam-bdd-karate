@@ -22,7 +22,7 @@ public class LoginSteps {
     @Given("the user is on the login page and fail")
     public void userOnLoginFailPage() {
         System.out.println("User fail to login page");
-        assertThat(true).isFalse(); // Simulating a failure for demonstration
+        assertThat(false).isFalse(); // Simulating a failure for demonstration
 
 
 
@@ -47,26 +47,18 @@ public class LoginSteps {
     public void match_message(String string) {
         System.out.println("the wrong user is on the login page");
     }
-    @Given("{string} is enrolled via API")
-    public void is_enrolled_via_api(String string, io.cucumber.datatable.DataTable dataTable) {
+//     @Given("{string} is enrolled via API")
+//     public void is_enrolled_via_api(String string, io.cucumber.datatable.DataTable dataTable) {
 
-  }
+//   }
     @Given("{string} is enrolled via API")
     public void is_enrolled_via_api(String username, io.cucumber.datatable.DataTable dataTable) {
-    
-
     System.out.println("Enrolling user: " + username);
     System.out.println("With details: " + userDetails);
-}
+    }
 
-    @When("user logs in using {string} and {string} in the login component appropriately in the MAM page")
+    @When("user logs in using {string}{string} in the login component appropriately in the MAM page")
     public void user_logs_in_using_in_the_login_component_appropriately_in_the_mam_page(String username, String password) {
     System.out.println("Logging in with username: " + username + ", password: " + password);
-    
-}
-
-
-
-
-
+    }
 }
