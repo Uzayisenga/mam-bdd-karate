@@ -1,4 +1,3 @@
-<?xml version="1.0" encoding="UTF-8"?>
 <project xmlns="http://maven.apache.org/POM/4.0.0"
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
@@ -52,21 +51,17 @@
         <dependency>
             <groupId>io.cucumber</groupId>
             <artifactId>cucumber-java</artifactId>
+            <version>7.23.0</version>
             <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>io.cucumber</groupId>
             <artifactId>cucumber-junit-platform-engine</artifactId>
+            <version>7.23.0</version>
             <scope>test</scope>
         </dependency>
 
         <!-- JUnit -->
-        <!-- Explicitly adding junit-jupiter-api for assertions to be correctly picked up -->
-        <dependency>
-            <groupId>org.junit.jupiter</groupId>
-            <artifactId>junit-jupiter-api</artifactId>
-            <scope>test</scope>
-        </dependency>
         <dependency>
             <groupId>org.junit.platform</groupId>
             <artifactId>junit-platform-suite</artifactId>
@@ -80,25 +75,23 @@
             <scope>test</scope>
         </dependency>
 
+        <!-- Apache HttpClient required by Karate -->
+        <!-- REMOVED EXPLICIT httpclient and httpcore dependencies. -->
+        <!-- Karate will now manage its own transitive dependencies for these. -->
+        <!-- If issues persist, consider using Maven's dependency:tree to identify exact conflicts. -->
+
         <!-- Selenium -->
         <dependency>
             <groupId>org.seleniumhq.selenium</groupId>
             <artifactId>selenium-java</artifactId>
             <version>4.20.0</version>
         </dependency>
-        <!-- Keep selenium-devtools-v137 for compatibility, but note 4.33.0 is newer than 4.20.0 for selenium-java -->
-        <!-- Consider aligning selenium-java and selenium-devtools versions if you face issues -->
         <dependency>
             <groupId>org.seleniumhq.selenium</groupId>
             <artifactId>selenium-devtools-v137</artifactId>
             <version>4.33.0</version>
         </dependency>
-        <!-- https://mvnrepository.com/artifact/org.sonarsource.scanner.maven/sonar-maven-plugin -->
-        <dependency>
-            <groupId>org.sonarsource.scanner.maven</groupId>
-            <artifactId>sonar-maven-plugin</artifactId>
-            <version>5.1.0.4751</version>
-        </dependency>
+
         <!-- WebDriverManager -->
         <dependency>
             <groupId>io.github.bonigarcia</groupId>
@@ -113,9 +106,9 @@
             <version>1.5.6</version>
         </dependency>
 
-        <!-- Apache Cassandra - If not directly used for test logic, consider removing or scoping as 'provided' -->
-        <!-- If this dependency is causing issues or not actively used by your test logic, consider removing it. -->
-        <!-- It's an old version (0.8.1) and might bring in conflicting transitive dependencies. -->
+        <!-- Apache Cassandra -->
+        <!-- Ensure this version (0.8.1) is truly necessary and if it introduces its own httpclient dependencies,
+             you might need to add specific exclusions for its transitive httpclient, ONLY if Karate then works without issues. -->
         <dependency>
             <groupId>org.apache.cassandra</groupId>
             <artifactId>cassandra-all</artifactId>
@@ -130,19 +123,17 @@
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
                 <version>3.14.0</version>
-                <configuration>
-                    <source>${maven.compiler.release}</source>
-                    <target>${maven.compiler.release}</target>
-                </configuration>
             </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
                 <version>3.5.2</version>
                 <configuration>
-                    <!-- Removing the <properties> block which was setting cucumber.junit-platform.naming-strategy -->
-                    <!-- This should allow JUnit Platform and Cucumber to work with their default and expected behavior -->
-                    <!-- Ensure no other external configuration (like command line -D parameters) is overriding Surefire -->
+                    <properties>
+                        <configurationParameters>
+                            cucumber.junit-platform.naming-strategy=surefire
+                        </configurationParameters>
+                    </properties>
                 </configuration>
             </plugin>
         </plugins>
