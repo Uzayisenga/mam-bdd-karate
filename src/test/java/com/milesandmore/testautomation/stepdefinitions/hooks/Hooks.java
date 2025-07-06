@@ -80,7 +80,7 @@ public class Hooks {
         // --- End capturing ---
 
 
-        WebDriverManager.chromedriver().setup();
+        WebDriverManager.chromedriver().clearDriverCache().setup();
 
         ChromeOptions options = new ChromeOptions();
 
@@ -90,7 +90,7 @@ public class Hooks {
                 System.getenv("KUBERNETES_SERVICE_HOST") != null;
 
         // Essential headless/browser stability flags
-        options.addArguments("--headless=new"); // modern headless mode
+        options.addArguments("--headless=chrome");
         options.addArguments("--no-sandbox");
         options.addArguments("--disable-dev-shm-usage");
         options.addArguments("--disable-gpu");
