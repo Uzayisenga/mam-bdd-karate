@@ -3,8 +3,8 @@ package com.milesandmore.testautomation.stepdefinitions.hooks;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.chrome.ChromeDriver;
 import org.openqa.selenium.chrome.ChromeOptions;
-import org.openqa.selenium.Capabilities; // Import Capabilities
-import org.openqa.selenium.HasCapabilities; // Import HasCapabilities
+import org.openqa.selenium.Capabilities;
+import org.openqa.selenium.HasCapabilities;
 
 import io.cucumber.java.Before;
 import io.cucumber.java.After;
@@ -14,64 +14,61 @@ import org.openqa.selenium.TakesScreenshot;
 
 import io.github.bonigarcia.wdm.WebDriverManager;
 
+import java.io.ByteArrayOutputStream;
+import java.io.PrintStream;
+import java.nio.charset.StandardCharsets;
+import java.util.List;
+import java.util.Map;
 import java.io.BufferedReader;
-import java.io.ByteArrayOutputStream; // For capturing logs
 import java.io.FileReader;
 import java.io.IOException;
-import java.io.PrintStream; // For redirecting System.out/err
-import java.nio.charset.StandardCharsets; // For log encoding
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.List;
-import java.util.Map; // Import for Map type
 
 public class Hooks {
 
     public static WebDriver driver;
 
-    // --- New fields for capturing System.out and System.err ---
     private ByteArrayOutputStream scenarioLogStream;
     private PrintStream originalSystemOut;
     private PrintStream originalSystemErr;
-    // --- End new fields ---
+
+    private final boolean debugFilePrint = false; // Toggle for reading Hooks.java content
 
     @Before
     public void setup() {
-        // --- START DEEP DEBUGGING OUTPUT ---
+        // Debug info
         System.out.println("\n===== Hooks.java Setup Debugging Start =====");
         System.out.println("Current Working Directory: " + System.getProperty("user.dir"));
         System.out.println("Java Version: " + System.getProperty("java.version"));
         System.out.println("OS Name: " + System.getProperty("os.name"));
-
-        // Attempt to read and print the content of this very Hooks.java file
-        try {
-            Path hooksPath = Paths.get(System.getProperty("user.dir"),
-                    "src", "test", "java", "com", "milesandmore",
-                    "testautomation", "stepdefinitions", "hooks", "Hooks.java");
-            //System.out.println("Attempting to read Hooks.java from: " + hooksPath.toAbsolutePath().toString());
-            /*
-            if (Files.exists(hooksPath)) {
-                System.out.println("--- Content of Hooks.java (as seen by build agent) ---");
-                try (BufferedReader reader = new BufferedReader(new FileReader(hooksPath.toFile()))) {
-                    String line;
-                    while ((line = reader.readLine()) != null) {
-                        System.out.println(line);
-                    }
-                }
-                System.out.println("--- End Content of Hooks.java ---");
-            } else {
-                System.err.println("CRITICAL: Hooks.java file NOT FOUND at expected path: " + hooksPath.toAbsolutePath().toString());
-            }
-            */
-        } catch (IOException e) {
-            System.err.println("ERROR: Could not read Hooks.java file for debugging: " + e.getMessage());
-            e.printStackTrace();
-        }
         System.out.println("===== Hooks.java Setup Debugging End =====\n");
-        // --- END DEEP DEBUGGING OUTPUT ---
 
-        // --- Start capturing System.out/err for scenario logs ---
+        // Optional file read
+        if (debugFilePrint) {
+            try {
+                Path hooksPath = Paths.get(System.getProperty("user.dir"),
+                        "src", "test", "java", "com", "milesandmore",
+                        "testautomation", "stepdefinitions", "hooks", "Hooks.java");
+
+                if (Files.exists(hooksPath)) {
+                    System.out.println("--- Content of Hooks.java ---");
+                    try (BufferedReader reader = new BufferedReader(new FileReader(hooksPath.toFile()))) {
+                        String line;
+                        while ((line = reader.readLine()) != null) {
+                            System.out.println(line);
+                        }
+                    }
+                } else {
+                    System.err.println("Hooks.java not found at: " + hooksPath.toAbsolutePath());
+                }
+            } catch (IOException e) {
+                System.err.println("Error reading Hooks.java: " + e.getMessage());
+            }
+        }
+
+        // Capture logs
         originalSystemOut = System.out;
         originalSystemErr = System.err;
         scenarioLogStream = new ByteArrayOutputStream();
@@ -79,19 +76,14 @@ public class Hooks {
         System.setOut(ps);
         System.setErr(ps);
         System.out.println("--- System.out/err redirected for scenario log capture ---");
-        // --- End capturing ---
-
 
         WebDriverManager.chromedriver().clearDriverCache().setup();
-
         ChromeOptions options = new ChromeOptions();
 
-        // CI/Container environment detection
         boolean isCI = System.getenv("CI") != null ||
                 System.getenv("JENKINS_HOME") != null ||
                 System.getenv("KUBERNETES_SERVICE_HOST") != null;
 
-        // Essential headless/browser stability flags
         options.addArguments("--headless=chrome");
         options.addArguments("--no-sandbox");
         options.addArguments("--disable-dev-shm-usage");
@@ -106,11 +98,9 @@ public class Hooks {
         options.addArguments("--disable-blink-features=AutomationControlled");
         options.addArguments("--remote-debugging-port=9222");
 
-        // Optional user-data-dir (avoids permission issues in some CI setups)
         String userDataDir = System.getProperty("java.io.tmpdir") + "/chrome_user_data_" + System.currentTimeMillis();
         options.addArguments("--user-data-dir=" + userDataDir);
 
-        // Only add these in CI/container environments
         if (isCI) {
             options.addArguments("--single-process");
             options.addArguments("--disable-background-networking");
@@ -122,41 +112,27 @@ public class Hooks {
             options.addArguments("--ignore-certificate-errors");
         }
 
-        // Disable automation indicators
         options.setExperimentalOption("useAutomationExtension", false);
         options.setExperimentalOption("excludeSwitches", new String[]{"enable-automation"});
 
-        // Initialize the driver
         try {
             driver = new ChromeDriver(options);
             driver.manage().timeouts().implicitlyWait(java.time.Duration.ofSeconds(10));
             driver.manage().timeouts().pageLoadTimeout(java.time.Duration.ofSeconds(30));
             System.out.println("✅ ChromeDriver initialized successfully.");
 
-            // --- IMPROVED DEBUG: Print ACTUAL ChromeOptions arguments from the driver ---
-            // This is a more reliable way to get the options that were actually applied
-            // compared to reflecting on the ChromeOptions object directly.
-            if (driver instanceof HasCapabilities) { // Check if driver implements HasCapabilities
+            if (driver instanceof HasCapabilities) {
                 Capabilities capabilities = ((HasCapabilities) driver).getCapabilities();
-                if (capabilities.getCapability(ChromeOptions.CAPABILITY) instanceof Map) {
+                Object chromeOptionsCap = capabilities.getCapability(ChromeOptions.CAPABILITY);
+                if (chromeOptionsCap instanceof Map<?, ?> optionsMap && optionsMap.containsKey("args")) {
                     @SuppressWarnings("unchecked")
-                    Map<String, Object> chromeOptionsMap = (Map<String, Object>) capabilities.getCapability(ChromeOptions.CAPABILITY);
-                    if (chromeOptionsMap != null && chromeOptionsMap.containsKey("args")) {
-                        @SuppressWarnings("unchecked")
-                        List<String> actualArgs = (List<String>) chromeOptionsMap.get("args");
-                        System.out.println("✅ ChromeOptions arguments (ACTUALLY APPLIED by driver):");
-                        actualArgs.forEach(arg -> System.out.println("  - " + arg));
-                    } else {
-                        System.err.println("⚠️ 'args' not found in ChromeOptions capabilities map.");
-                    }
+                    List<String> args = (List<String>) optionsMap.get("args");
+                    System.out.println("✅ ChromeOptions arguments (ACTUALLY APPLIED by driver):");
+                    args.forEach(arg -> System.out.println("  - " + arg));
                 } else {
-                    System.err.println("⚠️ ChromeOptions capability is not a Map in driver capabilities.");
+                    System.err.println("⚠️ Could not extract ChromeOptions arguments.");
                 }
-            } else {
-                System.err.println("⚠️ Driver instance does not implement HasCapabilities.");
             }
-            // --- END IMPROVED DEBUG ---
-
         } catch (Exception e) {
             System.err.println("❌ Failed to initialize ChromeDriver: " + e.getMessage());
             printSystemInfo();
@@ -167,44 +143,33 @@ public class Hooks {
 
     @After
     public void tearDown(Scenario scenario) {
-        // --- Start restoring System.out/err and attaching logs ---
-        System.setOut(originalSystemOut); // Restore original System.out
-        System.setErr(originalSystemErr); // Restore original System.err
+        // Restore System.out/err
+        System.setOut(originalSystemOut);
+        System.setErr(originalSystemErr);
         System.out.println("--- System.out/err restored ---");
 
         if (scenario.isFailed()) {
             try {
                 String logContent = scenarioLogStream.toString(StandardCharsets.UTF_8.name());
-                if (logContent != null && !logContent.isEmpty()) {
+                if (!logContent.isEmpty()) {
                     scenario.attach(logContent.getBytes(StandardCharsets.UTF_8), "text/plain", "Scenario Log");
                     System.out.println("📄 Scenario log attached successfully for failed scenario: " + scenario.getName());
-                } else {
-                    System.err.println("⚠️ Captured scenario log was empty for failed scenario: " + scenario.getName());
                 }
             } catch (IOException e) {
                 System.err.println("ERROR: Could not get scenario log content: " + e.getMessage());
-                e.printStackTrace();
             }
         }
-        // --- End restoring and attaching logs ---
 
         if (driver != null) {
-            if (scenario.isFailed()) {
+            if (scenario.isFailed() && driver instanceof TakesScreenshot) {
                 try {
-                    if (driver instanceof TakesScreenshot) {
-                        byte[] screenshot = ((TakesScreenshot) driver).getScreenshotAs(OutputType.BYTES);
-                        if (screenshot != null && screenshot.length > 0) {
-                            scenario.attach(screenshot, "image/png", "Screenshot");
-                            System.out.println("📸 Screenshot attached successfully for failed scenario: " + scenario.getName());
-                        } else {
-                            System.err.println("⚠️ Captured screenshot was null or empty for failed scenario: " + scenario.getName());
-                        }
-                    } else {
-                        System.err.println("❌ Driver instance does not support taking screenshots.");
+                    byte[] screenshot = ((TakesScreenshot) driver).getScreenshotAs(OutputType.BYTES);
+                    if (screenshot != null && screenshot.length > 0) {
+                        scenario.attach(screenshot, "image/png", "Screenshot");
+                        System.out.println("📸 Screenshot attached successfully for failed scenario: " + scenario.getName());
                     }
                 } catch (Exception e) {
-                    System.err.println("⚠️ Error capturing or attaching screenshot: " + e.getMessage());
-                    e.printStackTrace();
+                    System.err.println("⚠️ Error capturing screenshot: " + e.getMessage());
                 }
             }
 
@@ -213,7 +178,6 @@ public class Hooks {
                 System.out.println("🧹 WebDriver closed successfully.");
             } catch (Exception e) {
                 System.err.println("⚠️ Error closing WebDriver: " + e.getMessage());
-                e.printStackTrace();
             } finally {
                 driver = null;
             }
@@ -221,12 +185,8 @@ public class Hooks {
     }
 
     private void printSystemInfo() {
-        // When these methods are called, System.err is already redirected to scenarioLogStream.
-        // So, this output will be captured in the scenario log if the test fails.
         System.err.println("📋 System Info:");
         System.err.println("  - OS: " + System.getProperty("os.name"));
-        System.err.println("  - OS Architecture: " + System.getProperty("os.arch"));
-        System.err.println("  - OS Version: " + System.getProperty("os.version"));
         System.err.println("  - Java Version: " + System.getProperty("java.version"));
         System.err.println("  - User: " + System.getProperty("user.name"));
         System.err.println("  - Working Directory: " + System.getProperty("user.dir"));
@@ -234,16 +194,11 @@ public class Hooks {
     }
 
     private void checkChromeBinary() {
-        // When these methods are called, System.err is already redirected to scenarioLogStream.
-        // So, this output will be captured in the scenario log if the test fails.
         String command = System.getProperty("os.name").toLowerCase().contains("win") ? "where chrome" : "which google-chrome || which chromium-browser || which chrome";
         try {
-            ProcessBuilder pb;
-            if (System.getProperty("os.name").toLowerCase().contains("win")) {
-                pb = new ProcessBuilder("cmd", "/c", command);
-            } else {
-                pb = new ProcessBuilder("bash", "-c", command);
-            }
+            ProcessBuilder pb = System.getProperty("os.name").toLowerCase().contains("win")
+                    ? new ProcessBuilder("cmd", "/c", command)
+                    : new ProcessBuilder("bash", "-c", command);
 
             Process process = pb.start();
             int exitCode = process.waitFor();
@@ -251,10 +206,10 @@ public class Hooks {
             if (exitCode == 0) {
                 System.err.println("✅ Chrome binary found in PATH.");
             } else {
-                System.err.println("❌ Chrome binary NOT found in PATH. Please ensure Chrome is installed and its path is configured.");
+                System.err.println("❌ Chrome binary NOT found in PATH.");
             }
 
-            try (var reader = new java.io.BufferedReader(new java.io.InputStreamReader(process.getInputStream()))) {
+            try (BufferedReader reader = new BufferedReader(new java.io.InputStreamReader(process.getInputStream()))) {
                 String line;
                 System.err.println("--- Chrome Binary Check Output ---");
                 while ((line = reader.readLine()) != null) {
@@ -264,8 +219,7 @@ public class Hooks {
             }
 
         } catch (IOException | InterruptedException e) {
-            System.err.println("⚠️ Could not verify Chrome binary via command: " + e.getMessage());
-            e.printStackTrace();
+            System.err.println("⚠️ Could not verify Chrome binary: " + e.getMessage());
         }
     }
 }
