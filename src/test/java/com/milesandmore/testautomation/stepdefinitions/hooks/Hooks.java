@@ -49,7 +49,8 @@ public class Hooks {
             Path hooksPath = Paths.get(System.getProperty("user.dir"),
                     "src", "test", "java", "com", "milesandmore",
                     "testautomation", "stepdefinitions", "hooks", "Hooks.java");
-            System.out.println("Attempting to read Hooks.java from: " + hooksPath.toAbsolutePath().toString());
+            //System.out.println("Attempting to read Hooks.java from: " + hooksPath.toAbsolutePath().toString());
+            /*
             if (Files.exists(hooksPath)) {
                 System.out.println("--- Content of Hooks.java (as seen by build agent) ---");
                 try (BufferedReader reader = new BufferedReader(new FileReader(hooksPath.toFile()))) {
@@ -62,6 +63,7 @@ public class Hooks {
             } else {
                 System.err.println("CRITICAL: Hooks.java file NOT FOUND at expected path: " + hooksPath.toAbsolutePath().toString());
             }
+            */
         } catch (IOException e) {
             System.err.println("ERROR: Could not read Hooks.java file for debugging: " + e.getMessage());
             e.printStackTrace();
