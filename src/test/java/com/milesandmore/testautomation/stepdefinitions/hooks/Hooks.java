@@ -1,5 +1,7 @@
 package com.milesandmore.testautomation.stepdefinitions.hooks;
 
+import com.milesandmore.testautomation.utils.ZephyrScaleClient;
+import junit.framework.TestCase;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.chrome.ChromeDriver;
 import org.openqa.selenium.chrome.ChromeOptions;
@@ -222,4 +224,7 @@ public class Hooks {
             System.err.println("⚠️ Could not verify Chrome binary: " + e.getMessage());
         }
     }
+
+
+
 }
