@@ -1,4 +1,4 @@
-package com.milesandmore.testautomation.stepdefinitions;
+package com.mamcom_BDDSpring.stepdefinitions;
 
 import io.cucumber.java.en.*;
 import static org.assertj.core.api.Assertions.*;

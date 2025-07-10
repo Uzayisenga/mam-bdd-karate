@@ -1,4 +1,4 @@
-package com.milesandmore.testautomation.stepdefinitions;
+package com.mamcom_BDDSpring.stepdefinitions;
 
 public class MyPageHelper {
     public void navigate(String url) {

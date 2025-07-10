@@ -1,4 +1,4 @@
-package com.milesandmore.testautomation.stepdefinitions.hooks;
+package com.mamcom_BDDSpring.stepdefinitions.hooks;
 
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.chrome.ChromeDriver;

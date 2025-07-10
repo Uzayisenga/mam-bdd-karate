@@ -1,5 +1,5 @@
 
-package com.milesandmore.testautomation.stepdefinitions;
+package com.mamcom_BDDSpring.stepdefinitions;
 
 import io.cucumber.java.en.Given;
 import io.cucumber.java.en.When;
