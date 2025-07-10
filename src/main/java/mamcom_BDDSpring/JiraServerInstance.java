@@ -1,4 +1,4 @@
-package com.adaptavist.tm4j.jenkins.extensions;
+package mamcom_BDDSpring;
 
 import static java.lang.String.format;
 
