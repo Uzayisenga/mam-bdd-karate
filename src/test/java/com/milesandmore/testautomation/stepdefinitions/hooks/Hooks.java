@@ -85,12 +85,11 @@ public class Hooks {
 
         ChromeOptions options = new ChromeOptions();
 
-        // CI/Container environment detection
+
         boolean isCI = System.getenv("CI") != null ||
                 System.getenv("JENKINS_HOME") != null ||
                 System.getenv("KUBERNETES_SERVICE_HOST") != null;
 
-        // Essential headless/browser stability flags
         options.addArguments("--headless=new"); // modern headless mode
         options.addArguments("--no-sandbox");
         options.addArguments("--disable-dev-shm-usage");
@@ -105,11 +104,11 @@ public class Hooks {
         options.addArguments("--disable-blink-features=AutomationControlled");
         //options.addArguments("--remote-debugging-port=9222");
 
-        // Optional user-data-dir (avoids permission issues in some CI setups)
+
         String userDataDir = System.getProperty("java.io.tmpdir") + "/chrome_user_data_" + System.currentTimeMillis();
         //options.addArguments("--user-data-dir=" + userDataDir);
 
-        // Only add these in CI/container environments
+
         if (isCI) {
             options.addArguments("--single-process");
             options.addArguments("--disable-background-networking");
@@ -121,18 +120,18 @@ public class Hooks {
             options.addArguments("--ignore-certificate-errors");
         }
 
-        // Disable automation indicators
+
         options.setExperimentalOption("useAutomationExtension", false);
         options.setExperimentalOption("excludeSwitches", new String[]{"enable-automation"});
 
-        // Initialize the driver - ONLY ONCE!
+
         try {
             driver = new ChromeDriver(options);
             driver.manage().timeouts().implicitlyWait(java.time.Duration.ofSeconds(10));
             driver.manage().timeouts().pageLoadTimeout(java.time.Duration.ofSeconds(30));
             System.out.println("✅ ChromeDriver initialized successfully.");
 
-            // --- IMPROVED DEBUG: Print ACTUAL ChromeOptions arguments from the driver ---
+
             if (driver instanceof HasCapabilities) {
                 Capabilities capabilities = ((HasCapabilities) driver).getCapabilities();
                 if (capabilities.getCapability(ChromeOptions.CAPABILITY) instanceof Map) {
@@ -152,7 +151,7 @@ public class Hooks {
             } else {
                 System.err.println("⚠️ Driver instance does not implement HasCapabilities.");
             }
-            // --- END IMPROVED DEBUG ---
+
 
         } catch (Exception e) {
             System.err.println("❌ Failed to initialize ChromeDriver: " + e.getMessage());
