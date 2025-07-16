@@ -15,7 +15,8 @@ import static io.cucumber.junit.platform.engine.Constants.FILTER_TAGS_PROPERTY_N
 @ConfigurationParameter(key = GLUE_PROPERTY_NAME, value = "com.milesandmore.testautomation.stepdefinitions")
 @ConfigurationParameter(
         key = PLUGIN_PROPERTY_NAME,
-        value = "pretty,json:target/cucumber-report/cucumber.json,html:target/cucumber-report/cucumber.html"
+        value = "pretty,json:target/cucumber-report/cucumber.json,html:target/cucumber-report/cucumber.html,json:target/surefire-reports/Cucumber.json"
+
 )
 //@ConfigurationParameter(key = FILTER_TAGS_PROPERTY_NAME, value = "@failingTest")
 public class KarateRunnerTest {
