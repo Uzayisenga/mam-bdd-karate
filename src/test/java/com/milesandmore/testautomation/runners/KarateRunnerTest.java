@@ -18,6 +18,7 @@ import static io.cucumber.junit.platform.engine.Constants.FILTER_TAGS_PROPERTY_N
         value = "pretty,json:target/cucumber/cucumber.json,html:target/cucumber/cucumber.html"
 )
 
+
 //@ConfigurationParameter(key = FILTER_TAGS_PROPERTY_NAME, value = "@failingTest")
 public class KarateRunnerTest {
 }
