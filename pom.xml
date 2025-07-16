@@ -74,6 +74,13 @@
             <artifactId>selenium-java</artifactId>
             <version>${selenium.version}</version>
         </dependency>
+        <dependency>
+            <groupId>com.intuit.karate</groupId>
+            <artifactId>karate-junit5</artifactId>
+            <version>1.4.1</version> <!-- or use latest stable -->
+            <scope>test</scope>
+        </dependency>
+
 
         <!-- WebDriverManager -->
         <dependency>
