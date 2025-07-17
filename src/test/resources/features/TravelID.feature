@@ -1,5 +1,6 @@
-Feature: Travel ID Page Validations
 
+Feature: Travel ID Page Validations
+  @Approved
   Scenario: Travel ID Login and back navigation
     * url 'https://www-uat1.miles-and-more.com/de/en/program/partners/silkair.html'
     * print 'Simulate login click'

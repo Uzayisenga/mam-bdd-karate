@@ -141,6 +141,11 @@
             <artifactId>jackson-databind</artifactId>
             <version>2.17.1</version>
         </dependency>
+        <dependency>
+            <groupId>com.ibm.icu</groupId>
+            <artifactId>icu4j</artifactId>
+            <version>74.1</version>
+        </dependency>
 
         <!-- Lombok -->
         <dependency>
@@ -150,8 +155,12 @@
             <scope>provided</scope>
         </dependency>
     </dependencies>
-
     <build>
+        <testResources>
+            <testResource>
+                <directory>src/test/resources</directory>
+            </testResource>
+        </testResources>
         <plugins>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
@@ -169,6 +178,7 @@
                     <useModulePath>false</useModulePath>
                     <includes>
                         <include>**/*Test.java</include>
+                        <include>**/*RunnerTest.java</include>
                     </includes>
                 </configuration>
             </plugin>
