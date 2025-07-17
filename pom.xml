@@ -98,7 +98,7 @@
                 <version>3.1.2</version>
                 <configuration>
                     <includes>
-                        <include>**/*Runner*.java</include>
+                        <include>**/KarateRunnerTest.java</include>
                     </includes>
                 </configuration>
             </plugin>
