@@ -25,7 +25,7 @@ pipeline {
 
         stage('Run Tests') {
             steps {
-                sh 'mvn test'
+                bat 'mvn clean test'
             }
         }
 
