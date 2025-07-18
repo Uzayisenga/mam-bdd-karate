@@ -2,8 +2,8 @@ pipeline {
     agent any
 
     tools {
-        maven 'M3'       // Replace with the actual name of your Maven install
-        jdk 'jdk17'      // Replace with the actual name of your JDK install
+        maven 'M3'       
+        jdk 'jdk17'      
     }
 
     stages {
@@ -12,10 +12,14 @@ pipeline {
                 git 'https://github.com/Uzayisenga/mam-bdd-karate.git'
             }
         }
-
+        stage('Build and Test') {
+            steps {
+                bat 'mvn clean test'
+            }
+        }
         stage('Build') {
             steps {
-                sh 'mvn clean install -DskipTests'
+                bat 'mvn clean install -DskipTests'
             }
         }
 
