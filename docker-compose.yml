@@ -1,0 +1,15 @@
+version: '3'
+
+services:
+  jira:
+    image: atlassian/jira-software:9.15.0
+    ports:
+      - "9090:8080"
+    volumes:
+      - jiraVolume:/var/atlassian/application-data/jira
+    environment:
+      ATLASSIAN_JIRA_HOME: /var/atlassian/application-data/jira
+    container_name: jira
+
+volumes:
+  jiraVolume:
