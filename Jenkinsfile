@@ -49,8 +49,11 @@ pipeline {
     }
 
     post {
-        always {
-            junit 'target/surefire-reports/*.xml'
-        }
+    always {
+        echo 'Skipping JUnit results — Karate XML not generated.'
+        archiveArtifacts artifacts: 'target/karate-reports/*.html', allowEmptyArchive: true
+        archiveArtifacts artifacts: 'target/karate-reports/*.json', allowEmptyArchive: true
     }
+}
+
 }
