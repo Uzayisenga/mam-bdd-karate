@@ -2,5 +2,5 @@
 
 Feature: Sanity Check
 
-  Scenario: Basic Run
+  Scenario:SCRUM-T1 - Basic Run
     Given this is a test
