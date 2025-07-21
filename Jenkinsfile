@@ -41,7 +41,7 @@ pipeline {
 
         stage('Upload to Zephyr') {
             steps {
-                withCredentials([string(credentialsId: 'fa2cb66f-0fdc-43cf-8020-fd2d5ebf470c', variable: 'ZEPHYR_TOKEN')]) {
+                withCredentials([string(credentialsId: '01041c05-e42f-4e53-9afb-17332c383af9', variable: 'ZEPHYR_TOKEN')]) {
                     bat 'upload-to-zephyr.bat'
                 }
             }
