@@ -12,7 +12,7 @@ if defined REPORT_PATH (
     echo Found test report: !REPORT_PATH!
 
     curl --location --request POST ^
-      "https://api.zephyrscale.smartbear.com/v2/automations/executions/junit?projectKey=SCRUM" ^
+      "https://eu.api.zephyrscale.smartbear.com/v2/automations/executions/junit?projectKey=SCRUM" ^
       --header "Authorization: Bearer %ZEPHYR_TOKEN%" ^
       --header "Content-Type: multipart/form-data" ^
       --form "file=@!REPORT_PATH!"
