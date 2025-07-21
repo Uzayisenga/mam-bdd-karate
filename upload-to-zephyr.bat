@@ -11,7 +11,7 @@ for %%f in (target\surefire-reports\TEST-*.xml) do (
 if defined REPORT_PATH (
     echo Found test report: !REPORT_PATH!
     curl --location --request POST ^
-      "https://mileand.atlassian.net/projects/SCRUM?selectedItem=com.atlassian.plugins.atlassian-connect-plugin:com.kanoah.test-manager__main-project-page#!/v2/testCases" ^
+      "https://api.zephyrscale.smartbear.com/v2/automations/executions/junit?projectKey=SCRUM" ^
       --header "Authorization: Bearer %ZEPHYR_TOKEN%" ^
       --form "file=@!REPORT_PATH!" ^
       --form "autoCreateTestCases=true"
