@@ -1,7 +1,7 @@
 @echo off
 setlocal enabledelayedexpansion
 
-echo Uploading report to Zephyr...
+echo Uploading Karate JUnit results to Zephyr Scale Cloud...
 
 REM Look for the JUnit XML
 for %%f in (target\surefire-reports\TEST-*.xml) do (
@@ -10,11 +10,12 @@ for %%f in (target\surefire-reports\TEST-*.xml) do (
 
 if defined REPORT_PATH (
     echo Found test report: !REPORT_PATH!
+
     curl --location --request POST ^
-      "https://mileand.atlassian.net/projects/SCRUM?selectedItem=com.atlassian.plugins.atlassian-connect-plugin:com.kanoah.test-manager__main-project-page#!/v2/testCases" ^
+      "https://api.zephyrscale.smartbear.com/v2/automations/executions/junit?projectKey=SCRUM" ^
       --header "Authorization: Bearer %ZEPHYR_TOKEN%" ^
-      --form "file=@!REPORT_PATH!" ^
-      --form "autoCreateTestCases=true"
+      --header "Content-Type: multipart/form-data" ^
+      --form "file=@!REPORT_PATH!"
 ) else (
     echo ERROR: No test report found in target\surefire-reports\
     exit /b 1
