@@ -2,8 +2,12 @@ pipeline {
     agent any
 
     tools {
-        maven 'M3'       
-        jdk 'jdk17'      
+        maven 'M3'
+        jdk 'jdk17'
+    }
+
+    environment {
+        ZEPHYR_TOKEN = credentials('zephyr-api-token')
     }
 
     stages {
@@ -12,36 +16,35 @@ pipeline {
                 git 'https://github.com/Uzayisenga/mam-bdd-karate.git'
             }
         }
-        stage('Build and Test') {
-            steps {
-                bat 'mvn clean test'
-            }
-        }
+
         stage('Build') {
             steps {
                 bat 'mvn clean install -DskipTests'
             }
         }
 
-        stage('Run Tests') {
+        stage('Run Karate Tests') {
             steps {
-                sh 'mvn test'
+                bat 'mvn test'
             }
         }
 
         stage('Publish Karate Report') {
             steps {
                 publishHTML(target: [
-                    reportName: 'Karate Report',
-                    reportDir: 'target/karate-reports',
-                    reportFiles: 'karate-summary.html'
+                    reportName : 'Karate Report',
+                    reportDir  : 'target/karate-reports',
+                    reportFiles: 'karate-summary.html',
+                    keepAll    : true,
+                    alwaysLinkToLastBuild: true
                 ])
             }
         }
 
-        stage('Upload to Zephyr') {
+        stage('Upload to Zephyr Scale') {
             steps {
-                withCredentials([string(credentialsId: '01041c05-e42f-4e53-9afb-17332c383af9', variable: 'ZEPHYR_TOKEN')]) {
+                script {
+                    echo "Uploading test results to Zephyr Scale..."
                     bat 'upload-to-zephyr.bat'
                 }
             }
@@ -49,11 +52,10 @@ pipeline {
     }
 
     post {
-    always {
-        echo 'Skipping JUnit results — Karate XML not generated.'
-        archiveArtifacts artifacts: 'target/karate-reports/*.html', allowEmptyArchive: true
-        archiveArtifacts artifacts: 'target/karate-reports/*.json', allowEmptyArchive: true
+        always {
+            echo 'Archiving Karate HTML and JSON reports...'
+            archiveArtifacts artifacts: 'target/karate-reports/*.html', allowEmptyArchive: true
+            archiveArtifacts artifacts: 'target/karate-reports/*.json', allowEmptyArchive: true
+        }
     }
-}
-
 }
