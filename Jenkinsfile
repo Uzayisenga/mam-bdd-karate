@@ -109,8 +109,8 @@ pipeline {
                             customTestCycle: [
                                 name: "Automated Cycle - ${new Date().format("yyyy-MM-dd HH:mm")}",
                                 description: "Automated run for approved test cases",
-                                jiraProjectVersion: '10001',   // Your Jira version ID
-                                folderId: 'root',             // Optional: Zephyr folder
+                                jiraProjectVersion: '10001',
+                                folderId: 'root',
                                 customFields: '{}'
                             ]
                     } else {
@@ -125,4 +125,4 @@ pipeline {
             archiveArtifacts artifacts: 'target/karate-reports/*.json', allowEmptyArchive: true
         }
     }
-}
+
