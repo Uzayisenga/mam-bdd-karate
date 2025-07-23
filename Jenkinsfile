@@ -17,40 +17,26 @@ pipeline {
                 git 'https://github.com/Uzayisenga/mam-bdd-karate.git'
             }
         }
-        stage('Download Feature Files'){
-                    steps {
-                        downloadFeatureFiles serverAddress: 'http://localhost:2990/jira',
-                            projectKey: 'WEB',
-                            targetPath:'src/test/resources/features'
-                    }
-                }
-                stage('Clean Work Space'){
-                    steps {
-                        sh 'mvn clean'
-                    }
-                }
-                stage('Build') {
-                    steps {
-                        sh 'mvn test'
-                    }
-                }
+
+        stage('Download Feature Files (Plugin)') {
+            steps {
+                downloadFeatureFiles serverAddress: 'https://mileand.atlassian.net',
+                    projectKey: 'WEB',
+                    targetPath: 'src/test/resources/features'
             }
-            post {
-                always {
-                    publishTestResults serverAddress: 'https://mileand.atlassian.net',
-                    projectKey: 'SCRUM',
-                    format: 'Cucumber',
-                    filePath: 'target/karate-reports',
-                    autoCreateTestCases: false,
-                      customTestCycle: [
-                        name: 'Jenkins Build',
-                        description: 'Results from Jenkins Build',
-                        jiraProjectVersion: '10001',
-                        folderId: 'root',
-                        customFields: '{"number":50,"single-choice":"option1","checkbox":true,"userpicker":"5f8b5cf2ddfdcb0b8d1028bb","single-line":"a text line","datepicker":"2020-01-25","decimal":10.55,"multi-choice":["choice1","choice3"],"multi-line":"first line<br />second line"}'
-                      ]
-                }
+        }
+
+        stage('Clean Workspace') {
+            steps {
+                sh 'mvn clean'
             }
+        }
+
+        stage('Build Karate') {
+            steps {
+                sh 'mvn test'
+            }
+        }
 
         stage('Download Approved Features from Zephyr') {
             steps {
@@ -62,7 +48,6 @@ pipeline {
                              -X GET "https://eu.api.zephyrscale.smartbear.com/v2/testcases?projectKey=SCRUM&status=Approved" \
                              -o approved-tests.json
 
-                        # Extract Gherkin and write to feature files
                         jq -c '.values[]' approved-tests.json | while read test; do
                             key=$(echo "$test" | jq -r '.key')
                             name=$(echo "$test" | jq -r '.name' | sed 's/ /_/g')
@@ -125,4 +110,4 @@ pipeline {
             archiveArtifacts artifacts: 'target/karate-reports/*.json', allowEmptyArchive: true
         }
     }
-
+}
