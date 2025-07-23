@@ -24,7 +24,7 @@ pipeline {
                 downloadFeatureFiles serverAddress: 'https://mileand.atlassian.net',
                     projectKey: 'SCRUM',
                     targetPath: 'src/test/resources/features',
-                    token: env.ZEPHYR_TOKEN
+//                     token: env.ZEPHYR_TOKEN
                     }
             }
         }
