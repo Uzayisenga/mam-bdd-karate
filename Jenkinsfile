@@ -20,7 +20,7 @@ pipeline {
 
         stage('Download Feature Files (Plugin)') {
             steps {
-                withCredentials([string(credentialsId: 'zephyr-api-token', variable: 'ZEPHYR_TOKEN')]) {
+                withCredentials([string(credentialsId: '01041c05-e42f-4e53-9afb-17332c383af9', variable: 'ZEPHYR_TOKEN')]) {
                 downloadFeatureFiles serverAddress: 'https://mileand.atlassian.net',
                     projectKey: 'SCRUM',
                     targetPath: 'src/test/resources/features'
@@ -42,7 +42,7 @@ pipeline {
 
         stage('Download Approved Features from Zephyr') {
             steps {
-                withCredentials([string(credentialsId: 'zephyr-api-token', variable: 'ZEPHYR_TOKEN')]) {
+                withCredentials([string(credentialsId: '01041c05-e42f-4e53-9afb-17332c383af9', variable: 'ZEPHYR_TOKEN')]) {
                     sh '''
                         mkdir -p $FEATURES_DIR
                         curl -H "Authorization: Bearer $ZEPHYR_TOKEN" \
