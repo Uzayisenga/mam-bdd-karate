@@ -17,6 +17,40 @@ pipeline {
                 git 'https://github.com/Uzayisenga/mam-bdd-karate.git'
             }
         }
+        stage('Download Feature Files'){
+                    steps {
+                        downloadFeatureFiles serverAddress: 'http://localhost:2990/jira',
+                            projectKey: 'WEB',
+                            targetPath:'src/test/resources/features'
+                    }
+                }
+                stage('Clean Work Space'){
+                    steps {
+                        sh 'mvn clean'
+                    }
+                }
+                stage('Build') {
+                    steps {
+                        sh 'mvn test'
+                    }
+                }
+            }
+            post {
+                always {
+                    publishTestResults serverAddress: 'https://mileand.atlassian.net',
+                    projectKey: 'SCRUM',
+                    format: 'Cucumber',
+                    filePath: 'target/karate-reports',
+                    autoCreateTestCases: false,
+                      customTestCycle: [
+                        name: 'Jenkins Build',
+                        description: 'Results from Jenkins Build',
+                        jiraProjectVersion: '10001',
+                        folderId: 'root',
+                        customFields: '{"number":50,"single-choice":"option1","checkbox":true,"userpicker":"5f8b5cf2ddfdcb0b8d1028bb","single-line":"a text line","datepicker":"2020-01-25","decimal":10.55,"multi-choice":["choice1","choice3"],"multi-line":"first line<br />second line"}'
+                      ]
+                }
+            }
 
         stage('Download Approved Features from Zephyr') {
             steps {
@@ -76,7 +110,7 @@ pipeline {
                                 name: "Automated Cycle - ${new Date().format("yyyy-MM-dd HH:mm")}",
                                 description: "Automated run for approved test cases",
                                 jiraProjectVersion: '10001',   // Your Jira version ID
-                                folderId: '12345',             // Optional: Zephyr folder
+                                folderId: 'root',             // Optional: Zephyr folder
                                 customFields: '{}'
                             ]
                     } else {
