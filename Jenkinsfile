@@ -20,9 +20,12 @@ pipeline {
 
         stage('Download Feature Files (Plugin)') {
             steps {
+                withCredentials([string(credentialsId: 'zephyr-api-token', variable: 'ZEPHYR_TOKEN')]) {
                 downloadFeatureFiles serverAddress: 'https://mileand.atlassian.net',
                     projectKey: 'SCRUM',
-                    targetPath: 'src/test/resources/features'
+                    targetPath: 'src/test/resources/features',
+                    token: env.ZEPHYR_TOKEN
+                    }
             }
         }
 
