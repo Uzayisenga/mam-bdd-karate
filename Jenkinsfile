@@ -21,7 +21,7 @@ pipeline {
         stage('Download Feature Files (Plugin)') {
             steps {
                 downloadFeatureFiles serverAddress: 'https://mileand.atlassian.net',
-                    projectKey: 'WEB',
+                    projectKey: 'SCRUM',
                     targetPath: 'src/test/resources/features'
             }
         }
