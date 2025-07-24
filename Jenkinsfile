@@ -21,7 +21,7 @@ pipeline {
         stage('Download Feature Files (Plugin)') {
             steps {
                 withCredentials([string(credentialsId: '01041c05-e42f-4e53-9afb-17332c383af9', variable: 'ZEPHYR_TOKEN')]) {
-                downloadFeatureFiles serverAddress: 'https://mileand.atlassian.net/projects/SCRUM?selectedItem=com.atlassian.plugins.atlassian-connect-plugin:com.kanoah.test-manager__main-project-page#!/v2/testCases?projectId=10000',
+                downloadFeatureFiles serverAddress: 'https://mileand.atlassian.net',
                     projectKey: 'SCRUM',
                     targetPath: 'src/test/resources/features'
                     }
