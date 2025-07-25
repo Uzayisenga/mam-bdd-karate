@@ -58,17 +58,25 @@ pipeline {
                 }
             }
         }
-        stage('Download Zephyr Feature Files Ensure directory exists (Direct Curl)') {
+        stage('Download Zephyr Feature Files') {
             steps {
-                dir('src/test/resources/features') {
-                    sh 'mkdir -p .'
+                script {
+                    env.ZEPHYR_BASE_URL = 'https://eu.api.zephyrscale.smartbear.com/v2'
+                    env.ZEPHYR_PROJECT_KEY = 'SCRUM'
+                    env.ZEPHYR_APPROVAL_STATUS = 'Approved'
+                    def featureDir = "src/test/resources/features"
+
+                    sh "mkdir -p ${featureDir}"
+
                     withCredentials([string(credentialsId: '01041c05-e42f-4e53-9afb-17332c383af9', variable: 'ZEPHYR_TOKEN')]) {
                         sh """
-                            echo "Attempting to download feature files using curl..."
-                            curl -v -H "Authorization: Bearer ${ZEPHYR_TOKEN}" -H "Content-Type: application/json" -X GET "${env.ZEPHYR_BASE_URL}/testcases?projectKey=${env.ZEPHYR_PROJECT_KEY}&status=${env.ZEPHYR_APPROVAL_STATUS}" -o zephyr_testcases_raw.json
+                            cd "${featureDir}"
 
-                            if [ ! -f zephyr_testcases_raw.json ]; then
-                                echo "Error: zephyr_testcases_raw.json not found or empty."
+                            echo "Attempting to download test case list from Zephyr Scale..."
+                            curl -s -H "Authorization: Bearer \${ZEPHYR_TOKEN}" -H "Content-Type: application/json" -X GET "${env.ZEPHYR_BASE_URL}/testcases?projectKey=${env.ZEPHYR_PROJECT_KEY}&status=${env.ZEPHYR_APPROVAL_STATUS}" -o zephyr_testcases_raw.json
+
+                            if [ ! -f zephyr_testcases_raw.json ] || [ ! -s zephyr_testcases_raw.json ]; then
+                                echo "Error: zephyr_testcases_raw.json not found or empty after download."
                                 exit 1
                             fi
 
@@ -86,27 +94,30 @@ pipeline {
                                 fi
 
                                 echo "Downloading Gherkin for \$key - \$name from: \$testscript_url"
-                                gherkin_response=\$(curl -s -H "Authorization: Bearer ${ZEPHYR_TOKEN}" -H "Content-Type: application/json" -X GET "\$testscript_url")
+                                gherkin_response=\$(curl -s -H "Authorization: Bearer \${ZEPHYR_TOKEN}" -H "Content-Type: application/json" -X GET "\$testscript_url")
 
-                                # Check if the gherkin_response is valid JSON and extract the 'text' field
-                                gherkin_text=\$(echo "\$gherkin_response" | jq -r '.text // empty') # Use // empty to handle null/missing 'text' gracefully
+                                # Extract the 'text' field. Use // empty to handle null/missing 'text' gracefully.
+                                gherkin_text=\$(echo "\$gherkin_response" | jq -r '.text // empty')
 
                                 if [ -n "\$gherkin_text" ]; then
                                     echo "\$gherkin_text" > "${key}_${name}.feature"
                                     echo "Created feature file: ${key}_${name}.feature"
                                 else
-                                    echo "Warning: No Gherkin text found for test case \$key - \$name. Feature file will be empty or not created."
-                                    # You might want to create an empty file or a placeholder here, or skip it
+                                    echo "Warning: No Gherkin text found for test case \$key - \$name (from \$testscript_url). Feature file will be empty or not created."
+                                    # Optionally, create an empty file as a placeholder if you want to track all Zephyr tests, even if Gherkin is missing
                                     # echo "" > "${key}_${name}.feature"
                                 fi
                             done
 
-                            num_features=\$(ls -1 *.feature | wc -l)
+                            # Clean up the raw JSON file after processing
+                            rm zephyr_testcases_raw.json
+
+                            num_features=\$(ls -1 *.feature 2>/dev/null | wc -l) # Redirect stderr to /dev/null for ls
                             if [ "\$num_features" -eq 0 ]; then
-                                echo "Error: No feature files were successfully extracted."
+                                echo "Error: No feature files were successfully extracted from Zephyr Scale."
                                 exit 1
                             else
-                                echo "Successfully extracted \$num_features feature files."
+                                echo "Successfully extracted \$num_features feature files from Zephyr Scale."
                             fi
                         """
                     }
@@ -114,19 +125,27 @@ pipeline {
             }
         }
 
-        stage('Clean Workspace (Maven)') { // Renamed for clarity
-            steps {
-                sh 'mvn clean'
+      stage('Clean Workspace (Maven)') { // Renamed for clarity
+                  steps {
+                      sh 'mvn clean'
+                  }
+              }
+
+              stage('Build and Run Karate Tests') { // Combined and renamed stage
+                  steps {
+                      sh 'mvn test'
+                  }
+              }
+
+          }
+
+        post {
+            always {
+                junit 'target/surefire-reports/**/*.xml'
             }
         }
 
-        stage('Build and Run Karate Tests') { // Combined and renamed stage
-            steps {
-                sh 'mvn test'
-            }
-        }
 
-    }
 
     post {
         always {
