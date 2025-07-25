@@ -67,12 +67,10 @@ pipeline {
 
         stage('Build and Run Karate Tests') { // Combined and renamed stage
             steps {
-                sh 'mvn test' # This will run both DownloadRunner and KarateRunnerTest
+                sh 'mvn test'
             }
         }
 
-        // ... ensure your post-actions are still there, especially for Cucumber reports
-        // and the Zephyr Scale upload step (which can now use the 'Cucumber' format)
     }
 
     post {
