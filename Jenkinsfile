@@ -17,113 +17,62 @@ pipeline {
                 git 'https://github.com/Uzayisenga/mam-bdd-karate.git'
             }
         }
-        stage('Download Zephyr Feature Files (Direct Curl)') {
-                    steps {
-                        withCredentials([string(credentialsId: '01041c05-e42f-4e53-9afb-17332c383af9', variable: 'ZEPHYR_TOKEN')]) {
-                            sh '''
-                                mkdir -p "$FEATURES_DIR"
-                                echo "Attempting to download feature files using curl..."
-                                curl -v \
-                                     -H "Authorization: Bearer $ZEPHYR_TOKEN" \
-                                     -H "Content-Type: application/json" \
-                                     -X GET "https://eu.api.zephyrscale.smartbear.com/v2/testcases?projectKey=SCRUM&status=Approved" \
-                                     -o "$FEATURES_DIR/zephyr_testcases_raw.json"
 
-                                if [ ! -f "$FEATURES_DIR/zephyr_testcases_raw.json" ]; then
-                                    echo "ERROR: Raw JSON file not downloaded by curl. Exiting."
-                                    exit 1
-                                fi
-
-                                echo "Parsing downloaded JSON and extracting Gherkin..."
-                                # Ensure jq is installed on your Jenkins agent!
-                                jq -c '.values[]' "$FEATURES_DIR/zephyr_testcases_raw.json" | while read test; do
-                                    key=$(echo "$test" | jq -r '.key')
-                                    name=$(echo "$test" | jq -r '.name' | sed 's/ /_/g')
-                                    gherkin=$(echo "$test" | jq -r '.testScript.text')
-                                    if [ -n "$gherkin" ]; then # Only create file if gherkin content exists
-                                        echo "$gherkin" > "$FEATURES_DIR/${key}_${name}.feature"
-                                        echo "Created feature file: ${key}_${name}.feature"
-                                    else
-                                        echo "Skipping ${key}_${name}.feature: No Gherkin content found."
-                                    fi
-                                done
-
-                                if [ $(ls -1 "$FEATURES_DIR"/*.feature 2>/dev/null | wc -l) -eq 0 ]; then
-                                    echo "WARNING: No .feature files were extracted. Check Zephyr Scale for Gherkin content or jq script."
-                                else
-                                    echo "Successfully extracted $(ls -1 "$FEATURES_DIR"/*.feature | wc -l) feature files."
-                                fi
-                            '''
-                        }
-                    }
-                }
-
-                		stage('Download Feature Files'){
-        		            steps {
-        		                downloadFeatureFiles serverAddress: 'https://mileand.atlassian.net/projects/SCRUM?selectedItem=com.atlassian.plugins.atlassian-connect-plugin:com.kanoah.test-manager__main-project-page#!/v2/testCases',
-        		                    projectKey: 'SCRUM',
-        		                    targetPath:'src/test/resources/features'
-        		            }
-        		        }
-        stage('Download Feature Files (Plugin)') {
-            steps {
-                withCredentials([string(credentialsId: '01041c05-e42f-4e53-9afb-17332c383af9', variable: 'ZEPHYR_TOKEN')]) {
-                downloadFeatureFiles serverAddress: 'https://mileand.atlassian.net/projects/SCRUM?selectedItem=com.atlassian.plugins.atlassian-connect-plugin:com.kanoah.test-manager__main-project-page#!/v2/testCases',
-                    projectKey: 'SCRUM',
-                    targetPath: 'src/test/resources/features'
-                    }
-            }
-        }
-
-        stage('Clean Workspace') {
-            steps {
-                sh 'mvn clean'
-            }
-        }
-
-        stage('Build Karate') {
-            steps {
-                sh 'mvn test'
-                sh 'mvn clean test -Dkarate.env.baseUrl=https://eu.api.zephyrscale.smartbear.com/v2 -Dkarate.env.zephyrToken=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJjb250ZXh0Ijp7ImJhc2VVcmwiOiJodHRwczovL21pbGVhbmQuYXRsYXNzaWFuLm5ldCIsInVzZXIiOnsiYWNjb3VudElkIjoiNzEyMDIwOjY5OTJlMTEyLTc4N2QtNDNiNy04MzlkLTFhNmZiNGE4MTYwOCIsInRva2VuSWQiOiIwMTA0MWMwNS1lNDJmLTRlNTMtOWFmYi0xNzMzMmMzODNhZjkifX0sImlzcyI6ImNvbS5rYW5vYWgudGVzdC1tYW5hZ2VyIiwic3ViIjoiMTM2NjU0OTItZjA0OS0zN2RkLWExMmEtNzFmZTdjOTM4MjM0IiwiZXhwIjoxNzg0NjIzNTI3LCJpYXQiOjE3NTMwODc1Mjd9.Xi8jWOdL54fTQRGGOFSBAZD_3S6a3s6bEXS_daDChhw'
-            }
-        }
-
-        stage('Download Approved Features from Zephyr') {
+        stage('Download Zephyr Feature Files (Direct Curl)') { // New, clear name
             steps {
                 withCredentials([string(credentialsId: '01041c05-e42f-4e53-9afb-17332c383af9', variable: 'ZEPHYR_TOKEN')]) {
                     sh '''
-                        mkdir -p $FEATURES_DIR
-                        curl -H "Authorization: Bearer $ZEPHYR_TOKEN" \
+                        mkdir -p "$FEATURES_DIR"
+                        echo "Attempting to download feature files using curl..."
+                        curl -v \
+                             -H "Authorization: Bearer $ZEPHYR_TOKEN" \
                              -H "Content-Type: application/json" \
                              -X GET "https://eu.api.zephyrscale.smartbear.com/v2/testcases?projectKey=SCRUM&status=Approved" \
-                             -o approved-tests.json
+                             -o "$FEATURES_DIR/zephyr_testcases_raw.json"
 
-                        jq -c '.values[]' approved-tests.json | while read test; do
+                        if [ ! -f "$FEATURES_DIR/zephyr_testcases_raw.json" ]; then
+                            echo "ERROR: Raw JSON file not downloaded by curl. Exiting."
+                            exit 1
+                        fi
+
+                        echo "Parsing downloaded JSON and extracting Gherkin..."
+                        # Ensure jq is installed on your Jenkins agent!
+                        jq -c '.values[]' "$FEATURES_DIR/zephyr_testcases_raw.json" | while read test; do
                             key=$(echo "$test" | jq -r '.key')
                             name=$(echo "$test" | jq -r '.name' | sed 's/ /_/g')
                             gherkin=$(echo "$test" | jq -r '.testScript.text')
-                            echo "$gherkin" > "$FEATURES_DIR/${key}_${name}.feature"
+                            if [ -n "$gherkin" ]; then # Only create file if gherkin content exists
+                                echo "$gherkin" > "$FEATURES_DIR/${key}_${name}.feature"
+                                echo "Created feature file: ${key}_${name}.feature"
+                            else
+                                echo "Skipping ${key}_${name}.feature: No Gherkin content found."
+                            fi
                         done
+
+                        if [ $(ls -1 "$FEATURES_DIR"/*.feature 2>/dev/null | wc -l) -eq 0 ]; then
+                            echo "WARNING: No .feature files were extracted. Check Zephyr Scale for Gherkin content or jq script."
+                        else
+                            echo "Successfully extracted $(ls -1 "$FEATURES_DIR"/*.feature | wc -l) feature files."
+                        fi
                     '''
                 }
             }
         }
 
-        stage('Run Karate Tests') {
+        stage('Clean Workspace (Maven)') { // Renamed for clarity
             steps {
-                sh 'mvn test'
+                sh 'mvn clean'
             }
         }
 
-        stage('Publish Karate Report') {
+        stage('Build and Run Karate Tests') { // Combined and renamed stage
             steps {
-                publishHTML(target: [
-                    reportName: 'Karate Report',
-                    reportDir: 'target/karate-reports',
-                    reportFiles: 'karate-summary.html'
-                ])
+                sh 'mvn test' # This will run both DownloadRunner and KarateRunnerTest
             }
         }
+
+        // ... ensure your post-actions are still there, especially for Cucumber reports
+        // and the Zephyr Scale upload step (which can now use the 'Cucumber' format)
     }
 
     post {
@@ -136,18 +85,22 @@ pipeline {
                     if (fileExists('target/karate-reports') &&
                         sh(script: 'ls target/karate-reports/*.json 2>/dev/null | wc -l', returnStdout: true).trim() != '0') {
 
-                        publishTestResults serverAddress: 'https://mileand.atlassian.net/projects/SCRUM?selectedItem=com.atlassian.plugins.atlassian-connect-plugin:com.kanoah.test-manager__main-project-page#!/v2/testCycles?projectId=10000',
-                            projectKey: 'SCRUM',
-                            format: 'Cucumber',
-                            filePath: 'target/karate-reports',
-                            autoCreateTestCases: false,
-                            customTestCycle: [
-                                name: "Automated Cycle - ${new Date().format("yyyy-MM-dd HH:mm")}",
-                                description: "Automated run for approved test cases",
-                                jiraProjectVersion: '10001',
-                                folderId: 'root',
-                                customFields: '{}'
-                            ]
+                        // This step should now use the Cucumber format since Karate outputs Cucumber JSON
+                        // And you'll need the API Key (JWT) here too.
+                        withCredentials([string(credentialsId: '01041c05-e42f-4e53-9afb-17332c383af9', variable: 'ZEPHYR_TOKEN')]) {
+                            publishTestResults serverAddress: 'https://mileand.atlassian.net', // Or instance: 'MyZephyrCloud' if you get it working
+                                projectKey: 'SCRUM',
+                                format: 'Cucumber', // Use Cucumber format
+                                filePath: 'target/karate-reports',
+                                autoCreateTestCases: false,
+                                customTestCycle: [
+                                    name: "Automated Cycle - ${new Date().format("yyyy-MM-dd HH:mm")}",
+                                    description: "Automated run for approved test cases",
+                                    jiraProjectVersion: '10001', // Ensure this version exists in Jira
+                                    folderId: 'root',
+                                    customFields: '{}'
+                                ]
+                        }
                     } else {
                         echo '[Zephyr Upload SKIPPED] No Karate JSON reports found.'
                     }
