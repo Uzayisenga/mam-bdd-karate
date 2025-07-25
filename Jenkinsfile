@@ -173,13 +173,13 @@ pipeline {
             }
         }
 
-      stage('Clean Workspace (Maven)') { // Renamed for clarity
+      stage('Clean Workspace (Maven)') {
                   steps {
                       sh 'mvn clean'
                   }
               }
 
-              stage('Build and Run Karate Tests') { // Combined and renamed stage
+              stage('Build and Run Karate Tests') {
                   steps {
                       sh 'mvn test'
                   }
@@ -203,13 +203,13 @@ pipeline {
                         withCredentials([string(credentialsId: '01041c05-e42f-4e53-9afb-17332c383af9', variable: 'ZEPHYR_TOKEN')]) {
                             publishTestResults serverAddress: 'https://mileand.atlassian.net',
                                 projectKey: 'SCRUM',
-                                format: 'Cucumber', // Use Cucumber format
+                                format: 'Cucumber',
                                 filePath: 'target/karate-reports',
                                 autoCreateTestCases: false,
                                 customTestCycle: [
                                     name: "Automated Cycle - ${new Date().format("yyyy-MM-dd HH:mm")}",
                                     description: "Automated run for approved test cases",
-                                    jiraProjectVersion: '10001', // Ensure this version exists in Jira
+                                    jiraProjectVersion: '10001',
                                     folderId: 'root',
                                     customFields: '{}'
                                 ]
