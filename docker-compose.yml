@@ -1,4 +1,4 @@
-version: '3'
+version: "3.8"
 
 services:
   jira:
@@ -11,5 +11,18 @@ services:
       ATLASSIAN_JIRA_HOME: /var/atlassian/application-data/jira
     container_name: jira
 
+  jenkins:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: jenkins
+    ports:
+      - "8080:8080"
+      - "50000:50000"
+    volumes:
+      - jenkins_home:/var/jenkins_home
+    restart: unless-stopped
+
 volumes:
   jiraVolume:
+  jenkins_home:
