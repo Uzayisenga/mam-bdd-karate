@@ -18,7 +18,7 @@ pipeline {
             }
         }
 
-        stage('Download Zephyr Feature Files (Direct Curl)') { // New, clear name
+        stage('Download Zephyr Feature Files (Direct Curl)') {
             steps {
                 withCredentials([string(credentialsId: '01041c05-e42f-4e53-9afb-17332c383af9', variable: 'ZEPHYR_TOKEN')]) {
                     sh '''
@@ -58,6 +58,61 @@ pipeline {
                 }
             }
         }
+        stage('Download Zephyr Feature Files Ensure directory exists (Direct Curl)') {
+            steps {
+                dir('src/test/resources/features') {
+                    sh 'mkdir -p .'
+                    withCredentials([string(credentialsId: '01041c05-e42f-4e53-9afb-17332c383af9', variable: 'ZEPHYR_TOKEN')]) {
+                        sh """
+                            echo "Attempting to download feature files using curl..."
+                            curl -v -H "Authorization: Bearer ${ZEPHYR_TOKEN}" -H "Content-Type: application/json" -X GET "${env.ZEPHYR_BASE_URL}/testcases?projectKey=${env.ZEPHYR_PROJECT_KEY}&status=${env.ZEPHYR_APPROVAL_STATUS}" -o zephyr_testcases_raw.json
+
+                            if [ ! -f zephyr_testcases_raw.json ]; then
+                                echo "Error: zephyr_testcases_raw.json not found or empty."
+                                exit 1
+                            fi
+
+                            echo "Parsing downloaded JSON and extracting Gherkin..."
+
+                            # Loop through each test case from the raw JSON
+                            jq -c '.values[]' zephyr_testcases_raw.json | while read testcase_json; do
+                                key=\$(echo "\$testcase_json" | jq -r '.key')
+                                name=\$(echo "\$testcase_json" | jq -r '.name' | sed 's/ /_/g')
+                                testscript_url=\$(echo "\$testcase_json" | jq -r '.testScript.self')
+
+                                if [ "\$testscript_url" == "null" ] || [ -z "\$testscript_url" ]; then
+                                    echo "Warning: Test case \$key - \$name has no testScript URL. Skipping Gherkin download."
+                                    continue
+                                fi
+
+                                echo "Downloading Gherkin for \$key - \$name from: \$testscript_url"
+                                gherkin_response=\$(curl -s -H "Authorization: Bearer ${ZEPHYR_TOKEN}" -H "Content-Type: application/json" -X GET "\$testscript_url")
+
+                                # Check if the gherkin_response is valid JSON and extract the 'text' field
+                                gherkin_text=\$(echo "\$gherkin_response" | jq -r '.text // empty') # Use // empty to handle null/missing 'text' gracefully
+
+                                if [ -n "\$gherkin_text" ]; then
+                                    echo "\$gherkin_text" > "${key}_${name}.feature"
+                                    echo "Created feature file: ${key}_${name}.feature"
+                                else
+                                    echo "Warning: No Gherkin text found for test case \$key - \$name. Feature file will be empty or not created."
+                                    # You might want to create an empty file or a placeholder here, or skip it
+                                    # echo "" > "${key}_${name}.feature"
+                                fi
+                            done
+
+                            num_features=\$(ls -1 *.feature | wc -l)
+                            if [ "\$num_features" -eq 0 ]; then
+                                echo "Error: No feature files were successfully extracted."
+                                exit 1
+                            else
+                                echo "Successfully extracted \$num_features feature files."
+                            fi
+                        """
+                    }
+                }
+            }
+        }
 
         stage('Clean Workspace (Maven)') { // Renamed for clarity
             steps {
@@ -82,11 +137,8 @@ pipeline {
                 try {
                     if (fileExists('target/karate-reports') &&
                         sh(script: 'ls target/karate-reports/*.json 2>/dev/null | wc -l', returnStdout: true).trim() != '0') {
-
-                        // This step should now use the Cucumber format since Karate outputs Cucumber JSON
-                        // And you'll need the API Key (JWT) here too.
                         withCredentials([string(credentialsId: '01041c05-e42f-4e53-9afb-17332c383af9', variable: 'ZEPHYR_TOKEN')]) {
-                            publishTestResults serverAddress: 'https://mileand.atlassian.net', // Or instance: 'MyZephyrCloud' if you get it working
+                            publishTestResults serverAddress: 'https://mileand.atlassian.net',
                                 projectKey: 'SCRUM',
                                 format: 'Cucumber', // Use Cucumber format
                                 filePath: 'target/karate-reports',
