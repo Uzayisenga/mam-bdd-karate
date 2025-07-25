@@ -20,41 +20,65 @@ pipeline {
 
         stage('Download Zephyr Feature Files (Direct Curl)') {
             steps {
-                withCredentials([string(credentialsId: '01041c05-e42f-4e53-9afb-17332c383af9', variable: 'ZEPHYR_TOKEN')]) {
-                    sh '''
-                        mkdir -p "$FEATURES_DIR"
-                        echo "Attempting to download feature files using curl..."
-                        curl -v \
-                             -H "Authorization: Bearer $ZEPHYR_TOKEN" \
-                             -H "Content-Type: application/json" \
-                             -X GET "https://eu.api.zephyrscale.smartbear.com/v2/testcases?projectKey=SCRUM&status=Approved" \
-                             -o "$FEATURES_DIR/zephyr_testcases_raw.json"
+                script {
+                    withEnv(["PATH+MAVEN=${tool 'Maven'}/bin:${tool 'JDK'}/bin"]) {
+                        withCredentials([string(credentialsId: '01041c05-e42f-4e53-9afb-17332c383af9', variable: 'ZEPHYR_TOKEN')]) {
+                            sh '''
+                                mkdir -p src/test/resources/features
+                                echo "Attempting to download feature files using curl..."
 
-                        if [ ! -f "$FEATURES_DIR/zephyr_testcases_raw.json" ]; then
-                            echo "ERROR: Raw JSON file not downloaded by curl. Exiting."
-                            exit 1
-                        fi
+                                # First API call: Get the list of test cases
+                                curl -v -H "Authorization: Bearer ${ZEPHYR_TOKEN}" \\
+                                     -H "Content-Type: application/json" \\
+                                     -X GET "https://eu.api.zephyrscale.smartbear.com/v2/testcases?projectKey=SCRUM&status=Approved" \\
+                                     -o src/test/resources/features/zephyr_testcases_raw.json
 
-                        echo "Parsing downloaded JSON and extracting Gherkin..."
-                        # Ensure jq is installed on your Jenkins agent!
-                        jq -c '.values[]' "$FEATURES_DIR/zephyr_testcases_raw.json" | while read test; do
-                            key=$(echo "$test" | jq -r '.key')
-                            name=$(echo "$test" | jq -r '.name' | sed 's/ /_/g')
-                            gherkin=$(echo "$test" | jq -r '.testScript.text')
-                            if [ -n "$gherkin" ]; then # Only create file if gherkin content exists
-                                echo "$gherkin" > "$FEATURES_DIR/${key}_${name}.feature"
-                                echo "Created feature file: ${key}_${name}.feature"
-                            else
-                                echo "Skipping ${key}_${name}.feature: No Gherkin content found."
-                            fi
-                        done
+                                if [ ! -f src/test/resources/features/zephyr_testcases_raw.json ]; then
+                                    echo "Error: Failed to download zephyr_testcases_raw.json."
+                                    exit 1
+                                fi
 
-                        if [ $(ls -1 "$FEATURES_DIR"/*.feature 2>/dev/null | wc -l) -eq 0 ]; then
-                            echo "WARNING: No .feature files were extracted. Check Zephyr Scale for Gherkin content or jq script."
-                        else
-                            echo "Successfully extracted $(ls -1 "$FEATURES_DIR"/*.feature | wc -l) feature files."
-                        fi
-                    '''
+                                echo "Parsing downloaded JSON and extracting Gherkin..."
+
+                                # Loop through each test case from the raw JSON and download its Gherkin
+                                # We use 'cat' to feed the file into jq to avoid issues with jq being run multiple times
+                                cat src/test/resources/features/zephyr_testcases_raw.json | jq -c '.values[]' | while read testcase_json; do
+                                    key=$(echo "${testcase_json}" | jq -r '.key')
+                                    # Replace spaces with underscores for the filename
+                                    name=$(echo "${testcase_json}" | jq -r '.name' | sed 's/ /_/g')
+                                    testscript_url=$(echo "${testcase_json}" | jq -r '.testScript.self')
+
+                                    if [ "${testscript_url}" == "null" ] || [ -z "${testscript_url}" ]; then
+                                        echo "Warning: Test case ${key} - ${name} has no testScript URL. Skipping Gherkin download."
+                                        continue
+                                    fi
+
+                                    echo "Downloading Gherkin for ${key} - ${name} from: ${testscript_url}"
+                                    gherkin_response=$(curl -s -H "Authorization: Bearer ${ZEPHYR_TOKEN}" -H "Content-Type: application/json" -X GET "${testscript_url}")
+
+                                    # Extract the 'text' field. Use // empty to handle null/missing 'text' gracefully.
+                                    gherkin_text=$(echo "${gherkin_response}" | jq -r '.text // empty')
+
+                                    if [ -n "${gherkin_text}" ]; then
+                                        # Write the Gherkin text to a .feature file
+                                        echo "${gherkin_text}" > "src/test/resources/features/${key}_${name}.feature"
+                                        echo "Created feature file: ${key}_${name}.feature"
+                                    else
+                                        echo "Warning: No Gherkin text found for test case ${key} - ${name} (from ${testscript_url}). Feature file will be empty or not created."
+                                    fi
+                                done
+
+                                # Count the actual feature files created (excluding the raw JSON)
+                                num_feature_files=$(ls -1 src/test/resources/features/*.feature 2>/dev/null | wc -l)
+                                if [ "${num_feature_files}" -eq 0 ]; then
+                                    echo "Error: No feature files were successfully extracted."
+                                    exit 1
+                                else
+                                    echo "Successfully extracted ${num_feature_files} feature files."
+                                fi
+                            '''
+                        }
+                    }
                 }
             }
         }
