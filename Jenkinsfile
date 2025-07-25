@@ -28,7 +28,6 @@ pipeline {
                                 echo "Attempting to download feature files using curl..."
 
                                 # First API call: Get the list of test cases
-                                # Added -s (silent) to remove progress, keep -v for verbose headers for debugging if needed
                                 curl -v -H "Authorization: Bearer ${ZEPHYR_TOKEN}" \\
                                      -H "Content-Type: application/json" \\
                                      -X GET "https://eu.api.zephyrscale.smartbear.com/v2/testcases?projectKey=SCRUM&status=Approved" \\
@@ -41,44 +40,44 @@ pipeline {
 
                                 echo "Parsing downloaded JSON and extracting Gherkin..."
 
-                                # Loop through each test case from the raw JSON and download its Gherkin
-                                # Using 'read -r' for safer reading of lines
                                 cat src/test/resources/features/zephyr_testcases_raw.json | jq -c '.values[]' | while IFS= read -r testcase_json; do
                                     key=$(printf "%s" "${testcase_json}" | jq -r '.key // empty')
-                                    # Replace spaces with underscores for the filename
-                                    name=$(printf "%s" "${testcase_json}" | jq -r '.name // empty' | sed 's/ /_/g')
+                                    # Replace spaces with underscores for the filename, but keep original for Scenario title
+                                    name_for_file=$(printf "%s" "${testcase_json}" | jq -r '.name // empty' | sed 's/ /_/g')
+                                    name_for_scenario=$(printf "%s" "${testcase_json}" | jq -r '.name // empty')
 
-                                    # Use // empty to ensure 'null' becomes an empty string, then check for emptiness
                                     testscript_url=$(printf "%s" "${testcase_json}" | jq -r '.testScript.self // empty')
 
-                                    # Corrected comparison operator: '=' instead of '==' for portability
-                                    if [ -z "${testscript_url}" ]; then # Check if the variable is empty (which 'null' from jq -r would be)
-                                        echo "Warning: Test case ${key} - ${name} has no testScript URL or it's empty. Skipping Gherkin download."
-                                        continue # Skip to the next test case
+                                    if [ -z "${testscript_url}" ]; then
+                                        echo "Warning: Test case ${key} - ${name_for_scenario} has no testScript URL or it's empty. Skipping Gherkin download."
+                                        continue
                                     fi
 
-                                    echo "Downloading Gherkin for ${key} - ${name} from: ${testscript_url}"
-                                    # Added -s (silent) to curl, as -v is only needed for initial debug
+                                    echo "Downloading Gherkin for ${key} - ${name_for_scenario} from: ${testscript_url}"
                                     gherkin_response=$(curl -s -H "Authorization: Bearer ${ZEPHYR_TOKEN}" -H "Content-Type: application/json" -X GET "${testscript_url}")
-
-                                    # Extract the 'text' field using printf for safer piping to jq
                                     gherkin_text=$(printf "%s" "${gherkin_response}" | jq -r '.text // empty')
 
                                     if [ -n "${gherkin_text}" ]; then
+                                        # Construct the full Gherkin content
+                                        # We'll use a generic Feature name for now, you can make this dynamic if needed
+                                        # The 'key' can be added as a tag for better integration with Karate/Cucumber
+                                        full_gherkin_content="Feature: Zephyr Scale Test Automation
+
+        @${key}
+        Scenario: ${name_for_scenario}
+        ${gherkin_text}"
                                         # Write the Gherkin text to a .feature file
-                                        echo "${gherkin_text}" > "src/test/resources/features/${key}_${name}.feature"
-                                        echo "Created feature file: ${key}_${name}.feature"
+                                        echo "${full_gherkin_content}" > "src/test/resources/features/${key}_${name_for_file}.feature"
+                                        echo "Created feature file: ${key}_${name_for_file}.feature"
                                     else
-                                        echo "Warning: No Gherkin text found for test case ${key} - ${name} (from ${testscript_url}). Feature file will be empty or not created."
+                                        echo "Warning: No Gherkin text found for test case ${key} - ${name_for_scenario}. Feature file will be empty or not created."
                                     fi
                                 done
 
-                                # Count the actual feature files created (excluding the raw JSON)
-                                # Added '2>/dev/null' to suppress 'No such file or directory' errors if no .feature files exist
                                 num_feature_files=$(ls -1 src/test/resources/features/*.feature 2>/dev/null | wc -l)
                                 if [ "${num_feature_files}" -eq 0 ]; then
                                     echo "Error: No feature files were successfully extracted. This build will fail as no tests can run."
-                                    exit 1 # Fail the build explicitly if no feature files are generated
+                                    exit 1
                                 else
                                     echo "Successfully extracted ${num_feature_files} feature files."
                                 fi
