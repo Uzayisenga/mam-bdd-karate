@@ -37,6 +37,7 @@ pipeline {
         stage('Build Karate') {
             steps {
                 sh 'mvn test'
+                sh 'mvn clean test -Dkarate.env.baseUrl=https://eu.api.zephyrscale.smartbear.com/v2 -Dkarate.env.zephyrToken=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJjb250ZXh0Ijp7ImJhc2VVcmwiOiJodHRwczovL21pbGVhbmQuYXRsYXNzaWFuLm5ldCIsInVzZXIiOnsiYWNjb3VudElkIjoiNzEyMDIwOjY5OTJlMTEyLTc4N2QtNDNiNy04MzlkLTFhNmZiNGE4MTYwOCIsInRva2VuSWQiOiIwMTA0MWMwNS1lNDJmLTRlNTMtOWFmYi0xNzMzMmMzODNhZjkifX0sImlzcyI6ImNvbS5rYW5vYWgudGVzdC1tYW5hZ2VyIiwic3ViIjoiMTM2NjU0OTItZjA0OS0zN2RkLWExMmEtNzFmZTdjOTM4MjM0IiwiZXhwIjoxNzg0NjIzNTI3LCJpYXQiOjE3NTMwODc1Mjd9.Xi8jWOdL54fTQRGGOFSBAZD_3S6a3s6bEXS_daDChhw'
             }
         }
 
