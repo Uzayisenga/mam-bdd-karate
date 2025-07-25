@@ -119,6 +119,30 @@ pipeline {
                             else
                                 echo "Successfully extracted \$num_features feature files from Zephyr Scale."
                             fi
+                            # Loop through each test case from the raw JSON
+                                                jq -c '.values[]' zephyr_testcases_raw.json | while read testcase_json; do
+                                                    key=\$(echo "\$testcase_json" | jq -r '.key')
+                                                    name=\$(echo "\$testcase_json" | jq -r '.name' | sed 's/ /_/g')
+                                                    testscript_url=\$(echo "\$testcase_json" | jq -r '.testScript.self')
+
+                                                    if [ "\$testscript_url" == "null" ] || [ -z "\$testscript_url" ]; then
+                                                        echo "Warning: Test case \$key - \$name has no testScript URL. Skipping Gherkin download."
+                                                        continue
+                                                    fi
+
+                                                    echo "Downloading Gherkin for \$key - \$name from: \$testscript_url"
+                                                    gherkin_response=\$(curl -s -H "Authorization: Bearer \${ZEPHYR_TOKEN}" -H "Content-Type: application/json" -X GET "\$testscript_url")
+
+                                                    # Extract the 'text' field. Use // empty to handle null/missing 'text' gracefully.
+                                                    gherkin_text=\$(echo "\$gherkin_response" | jq -r '.text // empty')
+
+                                                    if [ -n "\$gherkin_text" ]; then
+                                                        echo "\$gherkin_text" > "${key}_${name}.feature"
+                                                        echo "Created feature file: ${key}_${name}.feature"
+                                                    else
+                                                        echo "Warning: No Gherkin text found for test case \$key - \$name (from \$testscript_url). Feature file will be empty or not created."
+                                                    fi
+                                                done
                         """
                     }
                 }
