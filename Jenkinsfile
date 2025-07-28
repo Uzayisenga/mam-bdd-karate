@@ -151,7 +151,8 @@ pipeline {
                                                                                      curl -v -X POST https://eu.api.zephyrscale.smartbear.com/v2/automations/executions/cucumber \
                                                                                        -H "Authorization: Bearer $ZEPHYR_TOKEN" \
                                                                                        -H "Content-Type: multipart/form-data" \
-                                                                                       -F "file=@target/karate-reports/*.json;type=application/json" \
+                                                                                       -F file=@target/karate-reports/features.TravelID.json;type=application/json
+
                                                                                        -F "projectKey=SCRUM" \
                                                                                        -F "autoCreateTestCases=false" \
                                                                                        -F "testCycleName=Automated Cycle - $TIMESTAMP" \
