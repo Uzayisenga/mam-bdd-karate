@@ -140,9 +140,10 @@ pipeline {
 
                                                                                    sh '''
                                                                                      echo "Uploading Karate JSON to Zephyr Scale..."
-                                                                                     num_json_files=$(ls -1 target/karate-reports/*.json | wc -l)
-                                                                                     if [ "$num_json_files" -eq "0" ]; then
-                                                                                       echo "No Karate JSON report found to upload."
+
+                                                                                     FILE=$(ls target/karate-reports/*.json | head -n 1)
+                                                                                     if [ ! -f "$FILE" ]; then
+                                                                                       echo "Karate JSON report not found!"
                                                                                        exit 1
                                                                                      fi
 
@@ -151,15 +152,15 @@ pipeline {
                                                                                      curl -v -X POST https://eu.api.zephyrscale.smartbear.com/v2/automations/executions/cucumber \
                                                                                        -H "Authorization: Bearer $ZEPHYR_TOKEN" \
                                                                                        -H "Content-Type: multipart/form-data" \
-                                                                                       -F file=@target/karate-reports/features.TravelID.json;type=application/json
-
+                                                                                       -F "file=@$FILE;type=application/json" \
                                                                                        -F "projectKey=SCRUM" \
                                                                                        -F "autoCreateTestCases=false" \
-                                                                                       -F "testCycleName=Automated Cycle - $TIMESTAMP" \
+                                                                                       -F "testCycleName=Automated Cycle - ${TIMESTAMP}" \
                                                                                        -F "testCycleDescription=Automated run for approved test cases from Jenkins pipeline" \
                                                                                        -F "jiraProjectVersion=10001" \
                                                                                        -F "folderId=root"
                                                                                    '''
+
 
                       }
                     }
