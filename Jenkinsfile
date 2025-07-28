@@ -109,37 +109,48 @@ pipeline {
 
     post {
         always {
-            junit testResults: 'target/surefire-reports/**/*.xml', allowEmptyResults: true
-            cucumber jsonReportDirectory: 'target/karate-reports', fileIncludePattern: '**/*.json', mergeFeaturesById: true, skipEmptyJSONFiles: true
+            junit '**/target/*.xml'
+
+            cucumber buildStatus: 'UNSTABLE',
+                     fileIncludePattern: '**/target/karate-reports/*.json',
+                     sortingMethod: 'ALPHABETICAL'
 
             script {
-                try {
-                    if (fileExists('target/karate-reports') &&
-                        sh(script: 'ls target/karate-reports/*.json 2>/dev/null | wc -l', returnStdout: true).trim() != '0') {
-                        withCredentials([string(credentialsId: '01041c05-e42f-4e53-9afb-17332c383af9', variable: 'ZEPHYR_TOKEN')]) {
-                            publishTestResults serverAddress: 'https://mileand.atlassian.net',
-                                projectKey: 'SCRUM',
-                                format: 'Cucumber',
-                                filePath: 'target/karate-reports',
-                                autoCreateTestCases: false,
-                                customTestCycle: [
-                                    name: "Automated Cycle - ${new Date().format("yyyy-MM-dd HH:mm")}",
-                                    description: "Automated run for approved test cases",
-                                    jiraProjectVersion: '10001',
-                                    folderId: 'root',
-                                    customFields: '{}'
-                                ]
-                        }
-                    } else {
-                        echo '[Zephyr Upload SKIPPED] No Karate JSON reports found.'
-                    }
-                } catch (Exception e) {
-                    echo "[Zephyr Upload ERROR] ${e.message}"
-                }
+                archiveArtifacts artifacts: 'target/karate-reports/*.json', allowEmptyArchive: true
+                archiveArtifacts artifacts: 'target/karate-reports/*.html', allowEmptyArchive: true
             }
 
-            archiveArtifacts artifacts: 'target/karate-reports/*.html', allowEmptyArchive: true
-            archiveArtifacts artifacts: 'target/karate-reports/*.json', allowEmptyArchive: true
+            stage('Upload Karate Results to Zephyr Scale (Direct Curl)') {
+                steps {
+                    script {
+                        withCredentials([string(credentialsId: '01041c05-e42f-4e53-9afb-17332c383af9', variable: 'ZEPHYR_TOKEN')]) {
+                            sh '''
+                                echo "Preparing to upload Karate test results to Zephyr Scale..."
+
+                                # Karate output expected here
+                                REPORT_FILE="target/karate-reports/karate-summary.json"
+                                UPLOAD_FILE="target/karate-reports/karate-summary-json.txt"
+
+                                if [ -f "$REPORT_FILE" ]; then
+                                    echo "Renaming JSON file for multipart upload compatibility..."
+                                    cp "$REPORT_FILE" "$UPLOAD_FILE"
+
+                                    echo "Uploading to Zephyr Scale Cloud..."
+                                    curl -v -X POST "https://api.zephyrscale.smartbear.com/v2/automations/executions/cucumber" \
+                                         -H "Authorization: Bearer ${ZEPHYR_TOKEN}" \
+                                         -H "Content-Type: multipart/form-data" \
+                                         -F "file=@${UPLOAD_FILE}" \
+                                         -F "projectKey=SCRUM" \
+                                         -F "autoCreateTestCases=false"
+
+                                    echo "Upload complete."
+                                else
+                                    echo "[Zephyr Upload SKIPPED] No Karate JSON report found at $REPORT_FILE"
+                                fi
+                            '''
+                        }
+                    }
+                }
+            }
         }
     }
-}
