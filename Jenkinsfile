@@ -102,12 +102,6 @@ pipeline {
               }
 
           }
-
-
-
-
-
-    ...
     stage('Run Karate Tests') {
         steps {
             sh 'mvn test -Dtest=KarateRunnerTest'
