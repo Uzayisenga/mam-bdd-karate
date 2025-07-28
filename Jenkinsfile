@@ -113,23 +113,27 @@ pipeline {
                     script {
                         withCredentials([string(credentialsId: '01041c05-e42f-4e53-9afb-17332c383af9', variable: 'ZEPHYR_TOKEN')]) {
                             sh '''
-                                echo "Uploading Karate JSON to Zephyr Scale..."
+                                                            echo "Uploading Karate JSON to Zephyr Scale..."
 
-                                num_json_files=$(ls -1 target/karate-reports/*.json 2>/dev/null | wc -l)
-                                if [ "$num_json_files" -eq 0 ]; then
-                                    echo "[Zephyr Upload SKIPPED] No Karate JSON reports found."
-                                    exit 0
-                                fi
+                                                            num_json_files=$(ls -1 target/karate-reports/*.json 2>/dev/null | wc -l)
+                                                            if [ "$num_json_files" -eq 0 ]; then
+                                                                echo "[Zephyr Upload SKIPPED] No Karate JSON reports found."
+                                                                exit 0
+                                                            fi
 
-                                for json_file in target/karate-reports/*.json; do
-                                    curl -v -X POST 'https://eu.api.zephyrscale.smartbear.com/v2/automations/executions/cucumber' \
-                                         -H "Authorization: Bearer ${ZEPHYR_TOKEN}" \
-                                         -H "Content-Type: multipart/form-data" \
-                                         -F "file=@${json_file}" \
-                                         -F "projectKey=SCRUM" \
-                                         -F "autoCreateTestCases=false"
-                                done
-                            '''
+                                                            for json_file in target/karate-reports/*.json; do
+                                                                curl -v -X POST 'https://eu.api.zephyrscale.smartbear.com/v2/automations/executions/cucumber' \\
+                                                                     -H "Authorization: Bearer ${ZEPHYR_TOKEN}" \\
+                                                                     -F "file=@${json_file};type=application/json" \\ # <-- CRITICAL CHANGE: Specify content type for the file
+                                                                     -F "projectKey=SCRUM" \\
+                                                                     -F "autoCreateTestCases=false" \\
+                                                                     -F "testCycleName=Automated Cycle - $(date +'%Y-%m-%d %H:%M')" \\
+                                                                     -F "testCycleDescription=Automated run for approved test cases from Jenkins pipeline" \\
+                                                                     -F "jiraProjectVersion=10001" \\
+                                                                     -F "folderId=root"
+                                                            done
+                                                            echo "Upload complete."
+                                                        '''
                         }
                     }
                 }
