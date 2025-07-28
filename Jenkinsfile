@@ -124,7 +124,6 @@ pipeline {
                                             for json_file in target/karate-reports/*.json; do
                                                 curl -v -X POST 'https://eu.api.zephyrscale.smartbear.com/v2/automations/executions/cucumber' \\
                                                      -H "Authorization: Bearer ${ZEPHYR_TOKEN}" \\
-                                                     # REMOVE THIS LINE: -H "Content-Type: multipart/form-data" \\
                                                      -F "file=@${json_file}" \\
                                                      -F "projectKey=SCRUM" \\
                                                      -F "autoCreateTestCases=false" \\
@@ -138,15 +137,16 @@ pipeline {
                                     }
                                 }
                             }
+                        }
+                    }
 
-
-        post {
-            always {
-                junit testResults: 'target/surefire-reports/**/*.xml', allowEmptyResults: true
-                cucumber jsonReportDirectory: 'target/karate-reports', fileIncludePattern: '**/*.json', mergeFeaturesById: true, skipEmptyJSONFiles: true
-                archiveArtifacts artifacts: 'target/karate-reports/*.html', allowEmptyArchive: true
-                archiveArtifacts artifacts: 'target/karate-reports/*.json', allowEmptyArchive: true
+                    post {
+                        always {
+                            junit testResults: 'target/surefire-reports/**/*.xml', allowEmptyResults: true
+                            cucumber jsonReportDirectory: 'target/karate-reports', fileIncludePattern: '**/*.json', mergeFeaturesById: true, skipEmptyJSONFiles: true
+                            archiveArtifacts artifacts: 'target/karate-reports/*.html', allowEmptyArchive: true
+                            archiveArtifacts artifacts: 'target/karate-reports/*.json', allowEmptyArchive: true
+                        }
+                    }
+                }
             }
-        }
-    }
-   }
