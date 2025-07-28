@@ -151,7 +151,6 @@ pipeline {
 
                                                                                      curl -v -X POST https://eu.api.zephyrscale.smartbear.com/v2/automations/executions/cucumber \
                                                                                        -H "Authorization: Bearer $ZEPHYR_TOKEN" \
-                                                                                       -H "Content-Type: multipart/form-data" \
                                                                                        -F "file=@$FILE;type=application/json" \
                                                                                        -F "projectKey=SCRUM" \
                                                                                        -F "autoCreateTestCases=false" \
