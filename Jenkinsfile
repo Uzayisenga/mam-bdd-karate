@@ -143,3 +143,4 @@ pipeline {
             archiveArtifacts artifacts: 'target/karate-reports/*.json', allowEmptyArchive: true
         }
     }
+}
