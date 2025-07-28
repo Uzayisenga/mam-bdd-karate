@@ -109,49 +109,47 @@ pipeline {
 
     post {
         always {
-            junit '**/target/*.xml'
+            junit testResults: 'target/surefire-reports/**/*.xml', allowEmptyResults: true
 
-            cucumber buildStatus: 'UNSTABLE',
-                     fileIncludePattern: '**/target/karate-reports/*.json',
-                     sortingMethod: 'ALPHABETICAL'
+
+            cucumber jsonReportDirectory: 'target/karate-reports', fileIncludePattern: '**/*.json', mergeFeaturesById: true, skipEmptyJSONFiles: true
 
             script {
-                archiveArtifacts artifacts: 'target/karate-reports/*.json', allowEmptyArchive: true
-                archiveArtifacts artifacts: 'target/karate-reports/*.html', allowEmptyArchive: true
-            }
+                try {
+                    echo "Preparing to upload Karate test results to Zephyr Scale..."
 
-            stage('Upload Karate Results to Zephyr Scale (Direct Curl)') {
-                steps {
-                    script {
+
+                    def reportFile = "target/karate-reports/karate-summary.json"
+                    def uploadFile = "target/karate-reports/karate-summary-for-upload.json"
+                    if (fileExists(reportFile)) {
+
+                        sh "cp ${reportFile} ${uploadFile}"
+
+                        echo "Uploading to Zephyr Scale Cloud via direct curl..."
                         withCredentials([string(credentialsId: '01041c05-e42f-4e53-9afb-17332c383af9', variable: 'ZEPHYR_TOKEN')]) {
-                            sh '''
-                                echo "Preparing to upload Karate test results to Zephyr Scale..."
 
-                                # Karate output expected here
-                                REPORT_FILE="target/karate-reports/karate-summary.json"
-                                UPLOAD_FILE="target/karate-reports/karate-summary-json.txt"
-
-                                if [ -f "$REPORT_FILE" ]; then
-                                    echo "Renaming JSON file for multipart upload compatibility..."
-                                    cp "$REPORT_FILE" "$UPLOAD_FILE"
-
-                                    echo "Uploading to Zephyr Scale Cloud..."
-                                    curl -v -X POST "https://api.zephyrscale.smartbear.com/v2/automations/executions/cucumber" \
-                                         -H "Authorization: Bearer ${ZEPHYR_TOKEN}" \
-                                         -H "Content-Type: multipart/form-data" \
-                                         -F "file=@${UPLOAD_FILE}" \
-                                         -F "projectKey=SCRUM" \
-                                         -F "autoCreateTestCases=false"
-
-                                    echo "Upload complete."
-                                else
-                                    echo "[Zephyr Upload SKIPPED] No Karate JSON report found at $REPORT_FILE"
-                                fi
-                            '''
+                            sh """
+                                curl -v -X POST "https://api.zephyrscale.smartbear.com/v2/automations/executions/cucumber" \\
+                                     -H "Authorization: Bearer ${ZEPHYR_TOKEN}" \\
+                                     -F "file=@${uploadFile}" \\
+                                     -F "projectKey=SCRUM" \\
+                                     -F "autoCreateTestCases=false" \\
+                                     -F "testCycleName=Automated Cycle - $(date +'%Y-%m-%d %H:%M')" \\
+                                     -F "testCycleDescription=Automated run for approved test cases from Jenkins pipeline" \\
+                                     -F "jiraProjectVersion=10001" \\
+                                     -F "folderId=root"
+                                echo "Zephyr Scale upload command executed."
+                            """
                         }
+                    } else {
+                        echo "[Zephyr Upload SKIPPED] No Karate JSON report found at ${reportFile}"
                     }
+                } catch (Exception e) {
+                    echo "[Zephyr Upload ERROR] Failed to upload to Zephyr Scale: ${e.message}"
+
                 }
             }
+            archiveArtifacts artifacts: 'target/karate-reports/*.json', allowEmptyArchive: true
+            archiveArtifacts artifacts: 'target/karate-reports/*.html', allowEmptyArchive: true
         }
     }
-}
