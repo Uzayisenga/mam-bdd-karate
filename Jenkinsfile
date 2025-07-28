@@ -122,7 +122,7 @@ pipeline {
                                 fi
 
                                 for json_file in target/karate-reports/*.json; do
-                                    curl -v -X POST 'https://eu.api.zephyrscale.smartbear.com/v2/automations/executions/cucumber' \
+                                          curl -v -X POST 'https://eu.api.zephyrscale.smartbear.com/v2/automations/executions/cucumber' \
                                          -H "Authorization: Bearer ${ZEPHYR_TOKEN}" \
                                          -H "Content-Type: multipart/form-data" \
                                          -F "file=@${json_file}" \
