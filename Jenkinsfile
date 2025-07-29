@@ -147,15 +147,16 @@ pipeline {
                                                                                        exit 1
                                                                                      fi
 
-                                                                                     TIMESTAMP=$(date +"%Y-%m-%d %H:%M")
+                                                                                     TIMESTAMP=$(date +"%Y-%m-%d_%H-%M")
 
                                                                                      curl -v -X POST https://eu.api.zephyrscale.smartbear.com/v2/automations/executions/cucumber \
                                                                                        -H "Authorization: Bearer $ZEPHYR_TOKEN" \
-                                                                                       -F "file=@$FILE;type=application/json" \
+                                                                                       -H "Content-Type: multipart/form-data" \
+                                                                                       -F "file=@${FILE};type=application/json" \
                                                                                        -F "projectKey=SCRUM" \
                                                                                        -F "autoCreateTestCases=false" \
-                                                                                       -F "testCycleName=Automated Cycle - ${TIMESTAMP}" \
-                                                                                       -F "testCycleDescription=Automated run for approved test cases from Jenkins pipeline" \
+                                                                                       -F "testCycleName=Automated_Cycle_${TIMESTAMP}" \
+                                                                                       -F "testCycleDescription=Automated_run_from_Jenkins_pipeline" \
                                                                                        -F "jiraProjectVersion=10001" \
                                                                                        -F "folderId=root"
                                                                                    '''
