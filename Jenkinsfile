@@ -151,7 +151,6 @@ pipeline {
 
                                                                                                                    curl -v -X POST 'https://eu.api.zephyrscale.smartbear.com/v2/automations/executions/cucumber' \\
                                                                                                                      -H "Authorization: Bearer ${ZEPHYR_TOKEN}" \\
-                                                                                                                     # REMOVE THIS LINE: -H "Content-Type: multipart/form-data" \\  <-- THIS MUST BE REMOVED!
                                                                                                                      -F "file=@${FILE};type=application/json" \\
                                                                                                                      -F "projectKey=SCRUM" \\
                                                                                                                      -F "autoCreateTestCases=false" \\
