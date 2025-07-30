@@ -7,7 +7,7 @@ import com.intuit.karate.junit5.Karate.Test;
 class DownloadRunner {
     @Karate.Test
     Karate download() {
-        return Karate.run("classpath:features/karate-workaround.feature")
+        return Karate.run("classpath:features")
                 .relativeTo(getClass())
                 .systemProperty("jiraBaseUrl", "https://api.zephyrscale.smartbear.com/v2")
                 .systemProperty("projectKey", "SCRUM")
