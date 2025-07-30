@@ -108,62 +108,37 @@ pipeline {
                 }
             }
 
-            stage('Upload Karate Results to Zephyr Scale (Direct Curl)') {
-                steps {
-                    script {
-                        withCredentials([string(credentialsId: '01041c05-e42f-4e53-9afb-17332c383af9', variable: 'ZEPHYR_TOKEN')]) {
-//                                                      sh '''
-//                                                                                      echo "Uploading Karate JSON to Zephyr Scale..."
-//
-//                                                                                      num_json_files=$(ls -1 target/karate-reports/*.json 2>/dev/null | wc -l)
-//                                                                                      if [ "$num_json_files" -eq 0 ]; then
-//                                                                                          echo "[Zephyr Upload SKIPPED] No Karate JSON reports found."
-//                                                                                          exit 0
-//                                                                                      fi
-//
-//                                                                                      # Capture the date string once to avoid multiple expansions and quoting issues
-//                                                                                      CURRENT_DATE_TIME=$(date +'%Y-%m-%d %H:%M')
-//
-//                                                                                      for json_file in target/karate-reports/*.json; do
-//                                                                                          curl -v -X POST 'https://eu.api.zephyrscale.smartbear.com/v2/automations/executions/cucumber' \\
-//                                                                                               -H "Authorization: Bearer ${ZEPHYR_TOKEN}" \\
-//                                                                                               -F "file=@${json_file};type=application/json" \\
-//                                                                                               -F "projectKey=SCRUM" \\
-//                                                                                               -F "autoCreateTestCases=false" \\
-//                                                                                               -F "testCycleName=Automated Cycle - ${CURRENT_DATE_TIME}" \\ # Use the pre-expanded variable
-//                                                                                               -F "testCycleDescription=Automated run for approved test cases from Jenkins pipeline" \\
-//                                                                                               -F "jiraProjectVersion=10001" \\
-//                                                                                               -F "folderId=root"
-//                                                                                      done
-//                                                                                      echo "Upload complete."
-//                                                                                  '''
+    stage('Upload Karate Results to Zephyr Scale (Direct Curl)') {
+      environment {
+        ZEPHYR_TOKEN = credentials('01041c05-e42f-4e53-9afb-17332c383af9')
+      }
+      steps {
+        script {
+          sh '''
+            echo "📤 Uploading Karate JSON to Zephyr Scale..."
 
-                                                                                   sh '''
-                                                                                     echo "Uploading Karate JSON to Zephyr Scale..."
+            FILE=$(ls target/karate-reports/*.json | head -n 1)
+            if [ ! -f "$FILE" ]; then
+              echo "❌ Karate JSON report not found!"
+              exit 1
+            fi
 
-                                                                                     FILE=$(ls target/karate-reports/*.json | head -n 1)
-                                                                                     if [ ! -f "$FILE" ]; then
-                                                                                       echo "Karate JSON report not found!"
-                                                                                       exit 1
-                                                                                     fi
+            TIMESTAMP=$(date +"%Y-%m-%d_%H-%M")
 
-                                                                                     TIMESTAMP=$(date +"%Y-%m-%d_%H-%M")
-
-                                                                                     curl -v -X POST "https://eu.api.zephyrscale.smartbear.com/v2/automations/executions/cucumber" \
-                                                                                       -H "Authorization: Bearer ${ZEPHYR_TOKEN}" \
-                                                                                       -F "file=@${FILE};type=application/json" \
-                                                                                       -F "projectKey=SCRUM" \
-                                                                                       -F "autoCreateTestCases=false" \
-                                                                                       -F "testCycleName=Automated_Cycle_${TIMESTAMP}" \
-                                                                                       -F "testCycleDescription=Automated_run_from_Jenkins_pipeline" \
-                                                                                       -F "jiraProjectVersion=10001" \
-                                                                                       -F "folderId=root"
-                                                                                   '''
-                      }
-                    }
-                }
-            }
+            curl -s -X POST "https://eu.api.zephyrscale.smartbear.com/v2/automations/executions/cucumber" \
+              -H "Authorization: Bearer ${ZEPHYR_TOKEN}" \
+              -F "file=@${FILE};type=application/json" \
+              -F "projectKey=SCRUM" \
+              -F "autoCreateTestCases=false" \
+              -F "testCycleName=Automated_Cycle_${TIMESTAMP}" \
+              -F "testCycleDescription=Automated run from Jenkins pipeline" \
+              -F "jiraProjectVersion=10001" \
+              -F "folderId=root"
+          '''
         }
+      }
+    }
+
 
         post {
             always {
