@@ -125,16 +125,43 @@ pipeline {
 
                             echo "Found JSON file: $FILE"
 
-                            # Create ZIP file containing the JSON
+                            # Create ZIP file using Python (more universally available)
                             ZIP_FILE="cucumber-results.zip"
-                            zip -j "$ZIP_FILE" "$FILE"
+                            python3 -c "
+            import zipfile
+            import sys
+            import os
+
+            json_file = '$FILE'
+            zip_file = '$ZIP_FILE'
+
+            if os.path.exists(json_file):
+                with zipfile.ZipFile(zip_file, 'w', zipfile.ZIP_DEFLATED) as zf:
+                    zf.write(json_file, os.path.basename(json_file))
+                print(f'Created ZIP: {zip_file}')
+                sys.exit(0)
+            else:
+                print(f'JSON file not found: {json_file}')
+                sys.exit(1)
+            "
 
                             if [ ! -f "$ZIP_FILE" ]; then
                                 echo "❌ Failed to create ZIP file!"
-                                exit 1
+                                echo "Trying alternative method with tar..."
+
+                                # Fallback: use tar with gzip (creates .tar.gz but might work)
+                                tar -czf cucumber-results.tar.gz -C "$(dirname "$FILE")" "$(basename "$FILE")"
+
+                                if [ -f "cucumber-results.tar.gz" ]; then
+                                    ZIP_FILE="cucumber-results.tar.gz"
+                                    echo "Created tar.gz file as fallback: $ZIP_FILE"
+                                else
+                                    echo "❌ All compression methods failed!"
+                                    exit 1
+                                fi
                             fi
 
-                            echo "Created ZIP file: $ZIP_FILE"
+                            echo "Using file: $ZIP_FILE"
 
                             TIMESTAMP=$(date +"%Y-%m-%d_%H-%M")
                             CYCLE_NAME="Automated_Cycle_${TIMESTAMP}"
@@ -147,8 +174,8 @@ pipeline {
 
                             echo "Response: $RESPONSE"
 
-                            # Clean up ZIP file
-                            rm -f "$ZIP_FILE"
+                            # Clean up files
+                            rm -f "$ZIP_FILE" cucumber-results.tar.gz 2>/dev/null || true
 
                             # Check if response contains error
                             if echo "$RESPONSE" | grep -q "errorCode"; then
@@ -206,6 +233,7 @@ pipeline {
                     }
                 }
             }
+
 
         stage('Upload Karate Results to Zephyr Scale') { // Simplified stage name
           environment {
