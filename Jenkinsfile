@@ -330,49 +330,49 @@ pipeline {
                 }
             }
 
-            // Alternative method using mixed approach (if the above doesn't work)
-            stage('Upload Karate Results to Zephyr Scale (Alternative)') {
-                environment {
-                    ZEPHYR_TOKEN = credentials('01041c05-e42f-4e53-9afb-17332c383af9')
-                }
-                steps {
-                    script {
-                        sh '''
-                            echo "📤 Uploading Karate JSON to Zephyr Scale..."
-
-                            FILE=$(ls target/karate-reports/*.json | head -n 1)
-                            if [ ! -f "$FILE" ]; then
-                                echo "❌ Karate JSON report not found!"
-                                exit 1
-                            fi
-
-                            TIMESTAMP=$(date +"%Y-%m-%d_%H-%M")
-
-                            # Store response for debugging
-                            RESPONSE=$(curl -s -X POST "https://eu.api.zephyrscale.smartbear.com/v2/automations/executions/cucumber" \
-                                -H "Authorization: Bearer ${ZEPHYR_TOKEN}" \
-                                -H "Content-Type: multipart/form-data" \
-                                -F "file=@${FILE}" \
-                                -F "projectKey=SCRUM" \
-                                -F "autoCreateTestCases=false" \
-                                -F "testCycleName=Automated_Cycle_${TIMESTAMP}" \
-                                -F "testCycleDescription=Automated run from Jenkins pipeline" \
-                                -F "jiraProjectVersion=10001" \
-                                -F "folderId=root")
-
-                            echo "Response: $RESPONSE"
-
-                            # Check if response contains error
-                            if echo "$RESPONSE" | grep -q "errorCode"; then
-                                echo "❌ Upload failed: $RESPONSE"
-                                exit 1
-                            else
-                                echo "✅ Upload successful: $RESPONSE"
-                            fi
-                        '''
-                    }
-                }
-            }
+//             // Alternative method using mixed approach (if the above doesn't work)
+//             stage('Upload Karate Results to Zephyr Scale (Alternative)') {
+//                 environment {
+//                     ZEPHYR_TOKEN = credentials('01041c05-e42f-4e53-9afb-17332c383af9')
+//                 }
+//                 steps {
+//                     script {
+//                         sh '''
+//                             echo "📤 Uploading Karate JSON to Zephyr Scale..."
+//
+//                             FILE=$(ls target/karate-reports/*.json | head -n 1)
+//                             if [ ! -f "$FILE" ]; then
+//                                 echo "❌ Karate JSON report not found!"
+//                                 exit 1
+//                             fi
+//
+//                             TIMESTAMP=$(date +"%Y-%m-%d_%H-%M")
+//
+//                             # Store response for debugging
+//                             RESPONSE=$(curl -s -X POST "https://eu.api.zephyrscale.smartbear.com/v2/automations/executions/cucumber" \
+//                                 -H "Authorization: Bearer ${ZEPHYR_TOKEN}" \
+//                                 -H "Content-Type: multipart/form-data" \
+//                                 -F "file=@${FILE}" \
+//                                 -F "projectKey=SCRUM" \
+//                                 -F "autoCreateTestCases=false" \
+//                                 -F "testCycleName=Automated_Cycle_${TIMESTAMP}" \
+//                                 -F "testCycleDescription=Automated run from Jenkins pipeline" \
+//                                 -F "jiraProjectVersion=10001" \
+//                                 -F "folderId=root")
+//
+//                             echo "Response: $RESPONSE"
+//
+//                             # Check if response contains error
+//                             if echo "$RESPONSE" | grep -q "errorCode"; then
+//                                 echo "❌ Upload failed: $RESPONSE"
+//                                 exit 1
+//                             else
+//                                 echo "✅ Upload successful: $RESPONSE"
+//                             fi
+//                         '''
+//                     }
+//                 }
+//             }
 
 
         stage('Upload Karate Results to Zephyr Scale') { // Simplified stage name
