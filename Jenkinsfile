@@ -141,7 +141,7 @@ pipeline {
             }
 
 
-        stage('Upload Karate Results to Zephyr Scale (Fixed)') {
+        stage('Upload Karate Results to Zephyr Scale') { // Simplified stage name
           environment {
             ZEPHYR_TOKEN = credentials('01041c05-e42f-4e53-9afb-17332c383af9')
           }
@@ -156,19 +156,16 @@ pipeline {
                   exit 1
                 fi
 
-                # ✅ Correct jq usage for array
-                TMP_FILE=target/karate-reports/tmp-karate-upload.json
-                jq 'map(. + {projectKey: "SCRUM"})' "$FILE" > "$TMP_FILE"
-
                 TIMESTAMP=$(date +"%Y-%m-%d_%H-%M")
 
-                curl -s -X POST "https://eu.api.zephyrscale.smartbear.com/v2/automations/executions/cucumber" \
-                  -H "Authorization: Bearer ${ZEPHYR_TOKEN}" \
-                  -F "file=@${TMP_FILE};type=application/json" \
-                  -F "autoCreateTestCases=false" \
-                  -F "testCycleName=Automated_Cycle_${TIMESTAMP}" \
-                  -F "testCycleDescription=Automated run from Jenkins pipeline" \
-                  -F "jiraProjectVersion=10001" \
+                curl -s -X POST "https://eu.api.zephyrscale.smartbear.com/v2/automations/executions/cucumber" \\
+                  -H "Authorization: Bearer ${ZEPHYR_TOKEN}" \\
+                  -F "file=@${FILE};type=application/json" \\
+                  -F "projectKey=SCRUM" \\
+                  -F "autoCreateTestCases=false" \\
+                  -F "testCycleName=Automated_Cycle_${TIMESTAMP}" \\
+                  -F "testCycleDescription=Automated run from Jenkins pipeline" \\
+                  -F "jiraProjectVersion=10001" \\
                   -F "folderId=root"
               '''
             }
