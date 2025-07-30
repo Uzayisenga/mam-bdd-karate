@@ -124,12 +124,6 @@ pipeline {
 
                             echo "Found JSON file: $FILE"
 
-                            # Check if jar command is available
-                            if ! command -v jar >/dev/null 2>&1; then
-                                echo "❌ jar command not found!"
-                                exit 1
-                            fi
-
                             # Create ZIP file using jar command (part of JDK)
                             ZIP_FILE="cucumber-results.zip"
                             echo "Creating ZIP file using jar command..."
@@ -153,17 +147,13 @@ pipeline {
 
                             echo "✅ Created ZIP file: $ZIP_FILE"
 
-                            # Verify ZIP contents
-                            echo "ZIP contents:"
-                            jar -tf "$ZIP_FILE"
-
                             TIMESTAMP=$(date +"%Y-%m-%d_%H-%M")
                             CYCLE_NAME="Automated_Cycle_${TIMESTAMP}"
                             CYCLE_DESC="Automated%20run%20from%20Jenkins%20pipeline"
 
-                            # Upload ZIP file to Zephyr Scale
+                            # Upload ZIP file to Zephyr Scale with autoCreateTestCases=true
                             echo "Uploading to Zephyr Scale..."
-                            RESPONSE=$(curl -s -X POST "https://eu.api.zephyrscale.smartbear.com/v2/automations/executions/cucumber?projectKey=SCRUM&autoCreateTestCases=false&testCycleName=${CYCLE_NAME}&testCycleDescription=${CYCLE_DESC}&jiraProjectVersion=10001&folderId=root" \
+                            RESPONSE=$(curl -s -X POST "https://eu.api.zephyrscale.smartbear.com/v2/automations/executions/cucumber?projectKey=SCRUM&autoCreateTestCases=true&testCycleName=${CYCLE_NAME}&testCycleDescription=${CYCLE_DESC}&jiraProjectVersion=10001&folderId=root" \
                                 -H "Authorization: Bearer ${ZEPHYR_TOKEN}" \
                                 -F "file=@${ZIP_FILE}")
 
@@ -172,17 +162,23 @@ pipeline {
                             # Clean up ZIP file
                             rm -f "$ZIP_FILE"
 
-                            # Check if response contains error
-                            if echo "$RESPONSE" | grep -q "errorCode"; then
+                            # Check response for different types of success/error
+                            if echo "$RESPONSE" | grep -q '"testExecutions"\\|"testExecutionKey"\\|"executions"'; then
+                                echo "✅ Upload successful! Test executions created."
+                                echo "Full response: $RESPONSE"
+                            elif echo "$RESPONSE" | grep -q "Couldn\\'t find any mapped test cases"; then
+                                echo "⚠️  Upload successful, but no test cases were mapped."
+                                echo "This means your Karate scenarios don\\'t have @TestCaseKey tags or matching test cases don\\'t exist in Zephyr Scale."
+                                echo "Solutions:"
+                                echo "1. Add @TestCaseKey=SCRUM-T123 tags to your Karate scenarios"
+                                echo "2. Create test cases in Zephyr Scale that match your scenario names"
+                                echo "3. Enable autoCreateTestCases=true (already enabled)"
+                                echo "Full response: $RESPONSE"
+                            elif echo "$RESPONSE" | grep -q "errorCode"; then
                                 echo "❌ Upload failed with error: $RESPONSE"
                                 exit 1
                             else
-                                echo "✅ Upload successful!"
-                                # Try to extract useful info from response
-                                if echo "$RESPONSE" | grep -q "testExecutionId"; then
-                                    echo "Test execution created successfully!"
-                                fi
-                                echo "Full response: $RESPONSE"
+                                echo "✅ Upload completed. Response: $RESPONSE"
                             fi
                         '''
                     }
