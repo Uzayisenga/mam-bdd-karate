@@ -141,7 +141,7 @@ pipeline {
             }
 
 
-        stage('Upload Karate Results to Zephyr Scale..... (Fixed)') {
+        stage('Upload Karate Results to Zephyr Scale (Fixed)') {
           environment {
             ZEPHYR_TOKEN = credentials('01041c05-e42f-4e53-9afb-17332c383af9')
           }
@@ -156,9 +156,9 @@ pipeline {
                   exit 1
                 fi
 
-                # Inject projectKey into the JSON
+                # ✅ Correct jq usage for array
                 TMP_FILE=target/karate-reports/tmp-karate-upload.json
-                jq '. + {projectKey: "SCRUM"}' "$FILE" > "$TMP_FILE"
+                jq 'map(. + {projectKey: "SCRUM"})' "$FILE" > "$TMP_FILE"
 
                 TIMESTAMP=$(date +"%Y-%m-%d_%H-%M")
 
@@ -174,6 +174,7 @@ pipeline {
             }
           }
         }
+
 }
 
         post {
