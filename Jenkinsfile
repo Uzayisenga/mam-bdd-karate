@@ -107,6 +107,87 @@ pipeline {
                     sh 'mvn test -Dtest=KarateRunnerTest'
                 }
             }
+            stage('Upload Karate Results to Zephyr Scale (JAR)') {
+                environment {
+                    ZEPHYR_TOKEN = credentials('01041c05-e42f-4e53-9afb-17332c383af9')
+                }
+                steps {
+                    script {
+                        sh '''
+                            echo "📤 Uploading Karate JSON to Zephyr Scale using JAR..."
+
+                            FILE=$(ls target/karate-reports/*.json | head -n 1)
+                            if [ ! -f "$FILE" ]; then
+                                echo "❌ Karate JSON report not found!"
+                                exit 1
+                            fi
+
+                            echo "Found JSON file: $FILE"
+
+                            # Check if jar command is available
+                            if ! command -v jar >/dev/null 2>&1; then
+                                echo "❌ jar command not found!"
+                                exit 1
+                            fi
+
+                            # Create ZIP file using jar command (part of JDK)
+                            ZIP_FILE="cucumber-results.zip"
+                            echo "Creating ZIP file using jar command..."
+
+                            # Create temporary directory structure for jar
+                            mkdir -p temp_zip
+                            cp "$FILE" temp_zip/
+
+                            # Create ZIP using jar
+                            cd temp_zip
+                            jar -cfM "../$ZIP_FILE" "$(basename "$FILE")"
+                            cd ..
+
+                            # Clean up temp directory
+                            rm -rf temp_zip
+
+                            if [ ! -f "$ZIP_FILE" ]; then
+                                echo "❌ Failed to create ZIP file with jar!"
+                                exit 1
+                            fi
+
+                            echo "✅ Created ZIP file: $ZIP_FILE"
+
+                            # Verify ZIP contents
+                            echo "ZIP contents:"
+                            jar -tf "$ZIP_FILE"
+
+                            TIMESTAMP=$(date +"%Y-%m-%d_%H-%M")
+                            CYCLE_NAME="Automated_Cycle_${TIMESTAMP}"
+                            CYCLE_DESC="Automated%20run%20from%20Jenkins%20pipeline"
+
+                            # Upload ZIP file to Zephyr Scale
+                            echo "Uploading to Zephyr Scale..."
+                            RESPONSE=$(curl -s -X POST "https://eu.api.zephyrscale.smartbear.com/v2/automations/executions/cucumber?projectKey=SCRUM&autoCreateTestCases=false&testCycleName=${CYCLE_NAME}&testCycleDescription=${CYCLE_DESC}&jiraProjectVersion=10001&folderId=root" \
+                                -H "Authorization: Bearer ${ZEPHYR_TOKEN}" \
+                                -F "file=@${ZIP_FILE}")
+
+                            echo "API Response: $RESPONSE"
+
+                            # Clean up ZIP file
+                            rm -f "$ZIP_FILE"
+
+                            # Check if response contains error
+                            if echo "$RESPONSE" | grep -q "errorCode"; then
+                                echo "❌ Upload failed with error: $RESPONSE"
+                                exit 1
+                            else
+                                echo "✅ Upload successful!"
+                                # Try to extract useful info from response
+                                if echo "$RESPONSE" | grep -q "testExecutionId"; then
+                                    echo "Test execution created successfully!"
+                                fi
+                                echo "Full response: $RESPONSE"
+                            fi
+                        '''
+                    }
+                }
+            }
             stage('Upload Karate Results to Zephyr Scale (Install ZIP)') {
                 environment {
                     ZEPHYR_TOKEN = credentials('01041c05-e42f-4e53-9afb-17332c383af9')
