@@ -124,17 +124,30 @@ pipeline {
                             fi
 
                             TIMESTAMP=$(date +"%Y-%m-%d_%H-%M")
+                            CYCLE_NAME="Automated_Cycle_${TIMESTAMP}"
+                            CYCLE_DESC="Automated%20run%20from%20Jenkins%20pipeline"
 
-                            # Method 1: Using query parameters (recommended)
-                            curl -s -X POST "https://eu.api.zephyrscale.smartbear.com/v2/automations/executions/cucumber?projectKey=SCRUM&autoCreateTestCases=false&testCycleName=Automated_Cycle_${TIMESTAMP}&testCycleDescription=Automated%20run%20from%20Jenkins%20pipeline&jiraProjectVersion=10001&folderId=root" \
+                            # Correct method: All parameters as query parameters
+                            RESPONSE=$(curl -s -X POST "https://eu.api.zephyrscale.smartbear.com/v2/automations/executions/cucumber?projectKey=SCRUM&autoCreateTestCases=false&testCycleName=${CYCLE_NAME}&testCycleDescription=${CYCLE_DESC}&jiraProjectVersion=10001&folderId=root" \
                                 -H "Authorization: Bearer ${ZEPHYR_TOKEN}" \
-                                -F "file=@${FILE};type=application/json"
+                                -F "file=@${FILE}")
+
+                            echo "Response: $RESPONSE"
+
+                            # Check if response contains error
+                            if echo "$RESPONSE" | grep -q "errorCode"; then
+                                echo "❌ Upload failed: $RESPONSE"
+                                exit 1
+                            else
+                                echo "✅ Upload successful!"
+                                echo "$RESPONSE"
+                            fi
                         '''
                     }
                 }
             }
 
-            // Alternative method using mixed approach (if the above doesn't work)
+
             stage('Upload Karate Results to Zephyr Scale (Alternative)') {
                 environment {
                     ZEPHYR_TOKEN = credentials('01041c05-e42f-4e53-9afb-17332c383af9')
@@ -178,7 +191,7 @@ pipeline {
                 }
             }
 
-        stage('Upload Karate Results to Zephyr Scale') { // Simplified stage name
+        stage('Upload Karate Results to Zephyr Scale') {
           environment {
             ZEPHYR_TOKEN = credentials('01041c05-e42f-4e53-9afb-17332c383af9')
           }
