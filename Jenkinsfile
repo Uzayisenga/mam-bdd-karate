@@ -172,7 +172,7 @@ pipeline {
                                 echo "Solutions:"
                                 echo "1. Add @TestCaseKey=SCRUM-T123 tags to your Karate scenarios"
                                 echo "2. Create test cases in Zephyr Scale that match your scenario names"
-                                echo "3. Enable autoCreateTestCases=false (already enabled)"
+                                echo "3. Enable autoCreateTestCases=true (already enabled)"
                                 echo "Full response: $RESPONSE"
                             elif echo "$RESPONSE" | grep -q "errorCode"; then
                                 echo "❌ Upload failed with error: $RESPONSE"
