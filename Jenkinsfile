@@ -65,10 +65,9 @@ pipeline {
                                     if [ -n "${gherkin_text}" ]; then
                                         # Construct the full Gherkin content
                                         full_gherkin_content="Feature: Zephyr Scale Test Automation
-
-        @${key}
-        Scenario: ${name_for_scenario}
-        ${gherkin_text}"
+                                        @${key}
+                                        Scenario: ${name_for_scenario}
+                                        ${gherkin_text}"
                                         # --- START DEBUGGING ADDITION ---
                                         echo "DEBUG: Full Gherkin content being written to file for ${key}:"
                                         echo "${full_gherkin_content}"
