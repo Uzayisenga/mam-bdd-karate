@@ -107,7 +107,66 @@ pipeline {
                     sh 'mvn test -Dtest=KarateRunnerTest'
                 }
             }
+            stage('Upload Karate Results to Zephyr Scale (Install ZIP)') {
+                environment {
+                    ZEPHYR_TOKEN = credentials('01041c05-e42f-4e53-9afb-17332c383af9')
+                }
+                steps {
+                    script {
+                        sh '''
+                            echo "📤 Installing zip and uploading Karate JSON to Zephyr Scale..."
 
+                            # Install zip if not available (works on Debian/Ubuntu-based images)
+                            if ! command -v zip &> /dev/null; then
+                                echo "Installing zip utility..."
+                                apt-get update -qq && apt-get install -y zip
+                            fi
+
+                            FILE=$(ls target/karate-reports/*.json | head -n 1)
+                            if [ ! -f "$FILE" ]; then
+                                echo "❌ Karate JSON report not found!"
+                                exit 1
+                            fi
+
+                            echo "Found JSON file: $FILE"
+
+                            # Create ZIP file containing the JSON
+                            ZIP_FILE="cucumber-results.zip"
+                            zip -j "$ZIP_FILE" "$FILE"
+
+                            if [ ! -f "$ZIP_FILE" ]; then
+                                echo "❌ Failed to create ZIP file!"
+                                exit 1
+                            fi
+
+                            echo "Created ZIP file: $ZIP_FILE"
+
+                            TIMESTAMP=$(date +"%Y-%m-%d_%H-%M")
+                            CYCLE_NAME="Automated_Cycle_${TIMESTAMP}"
+                            CYCLE_DESC="Automated%20run%20from%20Jenkins%20pipeline"
+
+                            # Upload ZIP file to Zephyr Scale
+                            RESPONSE=$(curl -s -X POST "https://eu.api.zephyrscale.smartbear.com/v2/automations/executions/cucumber?projectKey=SCRUM&autoCreateTestCases=false&testCycleName=${CYCLE_NAME}&testCycleDescription=${CYCLE_DESC}&jiraProjectVersion=10001&folderId=root" \\
+                                -H "Authorization: Bearer ${ZEPHYR_TOKEN}" \\
+                                -F "file=@${ZIP_FILE}")
+
+                            echo "Response: $RESPONSE"
+
+                            # Clean up ZIP file
+                            rm -f "$ZIP_FILE"
+
+                            # Check if response contains error
+                            if echo "$RESPONSE" | grep -q "errorCode"; then
+                                echo "❌ Upload failed: $RESPONSE"
+                                exit 1
+                            else
+                                echo "✅ Upload successful!"
+                                echo "$RESPONSE"
+                            fi
+                        '''
+                    }
+                }
+            }
             stage('Upload Karate Results to Zephyr Scale (Direct Curl)') {
                 environment {
                     ZEPHYR_TOKEN = credentials('01041c05-e42f-4e53-9afb-17332c383af9')
@@ -125,9 +184,15 @@ pipeline {
 
                             echo "Found JSON file: $FILE"
 
-                            # Create ZIP file using Python (more universally available)
+                            # Method 1: Try creating ZIP with jar command (part of Java)
                             ZIP_FILE="cucumber-results.zip"
-                            python3 -c "
+                            echo "Attempting to create ZIP using jar command..."
+
+                            if jar -cfM "$ZIP_FILE" -C "$(dirname "$FILE")" "$(basename "$FILE")" 2>/dev/null; then
+                                echo "✅ Created ZIP using jar: $ZIP_FILE"
+                            elif command -v python >/dev/null 2>&1; then
+                                echo "Trying with python (not python3)..."
+                                python -c "
             import zipfile
             import sys
             import os
@@ -136,51 +201,49 @@ pipeline {
             zip_file = '$ZIP_FILE'
 
             if os.path.exists(json_file):
-                with zipfile.ZipFile(zip_file, 'w', zipfile.ZIP_DEFLATED) as zf:
+                with zipfile.ZipFile(zip_file, 'w') as zf:
                     zf.write(json_file, os.path.basename(json_file))
-                print(f'Created ZIP: {zip_file}')
+                print('Created ZIP: ' + zip_file)
                 sys.exit(0)
             else:
-                print(f'JSON file not found: {json_file}')
+                print('JSON file not found: ' + json_file)
                 sys.exit(1)
             "
-
-                            if [ ! -f "$ZIP_FILE" ]; then
-                                echo "❌ Failed to create ZIP file!"
-                                echo "Trying alternative method with tar..."
-
-                                # Fallback: use tar with gzip (creates .tar.gz but might work)
-                                tar -czf cucumber-results.tar.gz -C "$(dirname "$FILE")" "$(basename "$FILE")"
-
-                                if [ -f "cucumber-results.tar.gz" ]; then
-                                    ZIP_FILE="cucumber-results.tar.gz"
-                                    echo "Created tar.gz file as fallback: $ZIP_FILE"
-                                else
-                                    echo "❌ All compression methods failed!"
-                                    exit 1
-                                fi
+                            else
+                                echo "⚠️  No ZIP creation method available. Trying to upload raw JSON..."
+                                echo "Some Zephyr Scale instances may accept raw JSON files."
+                                ZIP_FILE="$FILE"
                             fi
 
-                            echo "Using file: $ZIP_FILE"
+                            if [ ! -f "$ZIP_FILE" ]; then
+                                echo "❌ Failed to create any file for upload!"
+                                exit 1
+                            fi
+
+                            echo "Using file for upload: $ZIP_FILE"
 
                             TIMESTAMP=$(date +"%Y-%m-%d_%H-%M")
                             CYCLE_NAME="Automated_Cycle_${TIMESTAMP}"
                             CYCLE_DESC="Automated%20run%20from%20Jenkins%20pipeline"
 
-                            # Upload ZIP file to Zephyr Scale
+                            # Upload file to Zephyr Scale
+                            echo "Uploading to Zephyr Scale..."
                             RESPONSE=$(curl -s -X POST "https://eu.api.zephyrscale.smartbear.com/v2/automations/executions/cucumber?projectKey=SCRUM&autoCreateTestCases=false&testCycleName=${CYCLE_NAME}&testCycleDescription=${CYCLE_DESC}&jiraProjectVersion=10001&folderId=root" \
                                 -H "Authorization: Bearer ${ZEPHYR_TOKEN}" \
                                 -F "file=@${ZIP_FILE}")
 
                             echo "Response: $RESPONSE"
 
-                            # Clean up files
-                            rm -f "$ZIP_FILE" cucumber-results.tar.gz 2>/dev/null || true
+                            # Clean up created ZIP file (but not original JSON)
+                            if [ "$ZIP_FILE" != "$FILE" ]; then
+                                rm -f "$ZIP_FILE" 2>/dev/null || true
+                            fi
 
                             # Check if response contains error
                             if echo "$RESPONSE" | grep -q "errorCode"; then
                                 echo "❌ Upload failed: $RESPONSE"
-                                exit 1
+                                # Don't exit 1 here - let's see what the actual error is
+                                echo "Full response for debugging: $RESPONSE"
                             else
                                 echo "✅ Upload successful!"
                                 echo "$RESPONSE"
