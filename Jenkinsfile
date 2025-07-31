@@ -88,9 +88,8 @@ pipeline {
                                                         echo "  ${line}" >> "${feature_file}"
                                                     fi
                                                 done
-
                                                 echo "✅ Created APPROVED feature file: ${feature_file}"
-                                            else
+                                            else # gherkin_text is empty or null
                                                 echo "⚠️  No valid Gherkin content for ${key} - ${name_for_scenario}, creating basic test"
 
                                                 cat > "${feature_file}" << EOF
@@ -105,23 +104,20 @@ pipeline {
           When print 'Executing TM4J test:', testInfo
           Then match testInfo.testKey == '${key}'
         EOF
-                                                echo "✅ Created basic feature file: ${feature_file}"
-                                            fi
+                                                echo "✅ Created basic feature file (no Gherkin content): ${feature_file}"
+                                            fi # End of if-else for gherkin_text content
 
-                                            # These lines were causing the syntax error by being outside the 'if/else' but within the loop
-                                            # and then you had an extra 'else/fi' below that was unmatched.
-                                            # Moving them *inside* the respective if/else blocks or making them conditional.
-                                            # For debugging, let's put a consolidated print after the file creation.
+                                            # Consolidated debug print after the file is certainly created (either with real Gherkin or basic)
                                             if [ -s "${feature_file}" ]; then
                                                 echo "=== FEATURE FILE CONTENT (${key}) ==="
                                                 head -10 "${feature_file}" # Use head for brevity
                                                 echo "... (rest of file for ${key})"
                                                 echo "=== END FEATURE FILE CONTENT (${key}) ==="
                                             else
-                                                echo "❌ Failed to create or found empty feature file: ${feature_file}"
+                                                echo "❌ CRITICAL ERROR: Feature file was not created or is empty for ${key}!"
                                             fi
 
-                                        done
+                                        done # End of while loop
 
                                         # Count and list all created APPROVED feature files
                                         echo "=== APPROVED Feature Files Created ==="
