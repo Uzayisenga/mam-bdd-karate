@@ -86,8 +86,8 @@ pipeline {
                                                 echo "${gherkin_text}" | while IFS= read -r line; do
                                                     if [ -n "${line}" ]; then
                                                         echo "  ${line}" >> "${feature_file}"
-                                                    fi
-                                                done
+                                                    fi # <--- CRUCIAL: Added missing 'fi' for the inner 'if [ -n "${line}" ]'
+                                                done # End of inner while loop
                                                 echo "✅ Created APPROVED feature file: ${feature_file}"
                                             else # gherkin_text is empty or null
                                                 echo "⚠️  No valid Gherkin content for ${key} - ${name_for_scenario}, creating basic test"
@@ -117,7 +117,7 @@ pipeline {
                                                 echo "❌ CRITICAL ERROR: Feature file was not created or is empty for ${key}!"
                                             fi
 
-                                        done # End of while loop
+                                        done # End of outer while loop
 
                                         # Count and list all created APPROVED feature files
                                         echo "=== APPROVED Feature Files Created ==="
