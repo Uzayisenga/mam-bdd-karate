@@ -101,10 +101,11 @@ pipeline {
                                             head -10 "${feature_file}"
                                             echo "... (rest of file)"
                                         else
-                                            echo "❌ Failed to create feature file: ${feature_file}"
+                                            echo " Failed to create feature file: ${feature_file}"
                                         fi
                                     else
-                                        echo "⚠️  No valid Gherkin content for ${key} - ${name_for_scenario}, creating basic test"
+                                        # This 'else' block correctly handles when gherkin_text is empty or null
+                                        echo " No valid Gherkin content for ${key} - ${name_for_scenario}, creating basic test"
 
                                         # Create a basic valid feature file
                                         clean_scenario_name=$(echo "${name_for_scenario}" | sed 's/[^a-zA-Z0-9 ]/_/g')
@@ -123,17 +124,13 @@ Scenario: ${clean_scenario_name}
   Then match testInfo.testKey == '${key}'
 EOF
                                         echo "✅ Created basic feature file: ${feature_file}"
-                                    fi
-                                        echo "✅ Created APPROVED feature file: ${feature_file}"
 
                                         # Debug: Show the created file content for validation
                                         echo "=== FEATURE FILE CONTENT ==="
                                         cat "${feature_file}"
                                         echo "=== END FEATURE FILE ==="
-                                    else
-                                        echo "⚠️  Warning: No Gherkin text found for APPROVED test case ${key} - ${name_for_scenario}."
-                                    fi
-                                done
+                                    fi # This 'fi' now correctly closes the 'if [ -n "${gherkin_text}" ]' block.
+                                done # This 'done' closes the 'while IFS= read -r testcase_json' loop.
 
                                 # Count and list all created APPROVED feature files
                                 echo "=== APPROVED Feature Files Created ==="
