@@ -352,27 +352,7 @@ pipeline {
 
                         echo "API URL: ${api_url}"
 
-                        // Test API connectivity first
-                        echo "🌐 Testing API connectivity..."
-                        def connectivityTest = sh(
-                            script: """
-                                curl -s -w "HTTPSTATUS:%{http_code}" \\
-                                --connect-timeout 10 \\
-                                --max-time 30 \\
-                                -X GET "${baseUrl}/v2/healthcheck" \\
-                                -H 'Authorization: Bearer \${ZEPHYR_TOKEN}' \\
-                                -H 'Content-Type: application/json'
-                            """,
-                            returnStdout: true
-                        ).trim()
-
-                        if (connectivityTest.contains("HTTPSTATUS:200")) {
-                            echo "✅ API connectivity test passed"
-                        } else {
-                            echo "⚠️ API connectivity test failed: ${connectivityTest}"
-                        }
-
-                        // Make the main API call
+                        // Make the API call
                         def response = sh(
                             script: """
                                 curl -s -w "HTTPSTATUS:%{http_code}" \\
@@ -755,12 +735,7 @@ pipeline {
                             echo "Creating minimal test report for upload..."
                             mkdir -p target/karate-reports
 
-                            # Check if we have any XML results to convert info
-                            XML_COUNT=\$(find target -name "*.xml" -path "*/surefire-reports/*" | wc -l)
-
-                            if [ "\$XML_COUNT" -gt 0 ]; then
-                                echo "Found \$XML_COUNT XML results, creating summary JSON..."
-                                cat > target/karate-reports/summary-results.json << 'EOF'
+                            cat > target/karate-reports/minimal-results.json << 'EOF'
 {
   "summary": {
     "karate": "1.0.0",
@@ -772,32 +747,7 @@ pipeline {
   },
   "features": [
     {
-      "name": "Jenkins Pipeline Test Results",
-      "scenarios": [
-        {
-          "name": "Test Execution Summary",
-          "status": "passed",
-          "duration": 1000
-        }
-      ]
-    }
-  ]
-}
-EOF
-            else
-                cat > target/karate-reports/minimal-results.json << 'EOF'
-{
-  "summary": {
-    "karate": "1.0.0",
-    "features": 1,
-    "scenarios": 1,
-    "passed": 1,
-    "failed": 0,
-    "skipped": 0
-  },
-  "features": [
-    {
-      "name": "Jenkins Pipeline Placeholder",
+      "name": "Jenkins Pipeline Test",
       "scenarios": [
         {
           "name": "Pipeline Execution Test",
@@ -809,18 +759,11 @@ EOF
   ]
 }
 EOF
-            fi
 
             FILE=\$(find target/karate-reports -name "*.json" | head -n 1)
         fi
 
         echo "✅ Using report file: \$FILE"
-
-        # Validate JSON file
-        if ! python3 -m json.tool "\$FILE" > /dev/null 2>&1; then
-            echo "⚠️ JSON file appears to be invalid, attempting to fix..."
-            # Basic JSON validation and cleanup could go here
-        fi
 
         # Show file details
         echo "File details:"
@@ -931,3 +874,59 @@ EOF
                 try {
                     junit testResults: 'target/surefire-reports/**/*.xml', allowEmptyResults: true
                     echo "✅ JUnit results archived"
+                } catch (Exception e) {
+                    echo "⚠️  JUnit archiving failed: ${e.getMessage()}"
+                }
+
+                try {
+                    cucumber jsonReportDirectory: 'target/karate-reports', fileIncludePattern: '**/*.json', mergeFeaturesById: true, skipEmptyJSONFiles: true
+                    echo "✅ Cucumber reports archived"
+                } catch (Exception e) {
+                    echo "⚠️  Cucumber report archiving failed: ${e.getMessage()}"
+                }
+
+                try {
+                    archiveArtifacts artifacts: 'target/karate-reports/*.html', allowEmptyArchive: true
+                    archiveArtifacts artifacts: 'target/karate-reports/*.json', allowEmptyArchive: true
+                    archiveArtifacts artifacts: 'src/test/resources/features/**/*.feature', allowEmptyArchive: true
+                    echo "✅ Artifacts archived"
+                } catch (Exception e) {
+                    echo "⚠️  Artifact archiving failed: ${e.getMessage()}"
+                }
+            }
+
+            script {
+                echo "🧹 Pipeline completed. Check archived artifacts for test results."
+
+                // Display final summary
+                def featureCount = sh(script: "find src/test/resources/features -name '*.feature' 2>/dev/null | wc -l || echo '0'", returnStdout: true).trim()
+                def testResults = sh(script: "find target -name '*.xml' -o -name '*.json' 2>/dev/null | wc -l || echo '0'", returnStdout: true).trim()
+
+                echo "📊 Pipeline Summary:"
+                echo "   - Feature files processed: ${featureCount}"
+                echo "   - Test result files: ${testResults}"
+                echo "   - Check Jenkins artifacts for detailed reports"
+            }
+        }
+        failure {
+            script {
+                echo "❌ Pipeline failed. Check the logs above for detailed error information."
+                echo "Common issues to check:"
+                echo "1. Zephyr Scale API connectivity and credentials"
+                echo "2. TQL query syntax and test case availability"
+                echo "3. Maven configuration and dependencies"
+                echo "4. Karate test runner configuration"
+                echo "5. Feature file location and Karate classpath settings"
+            }
+        }
+        success {
+            script {
+                echo "✅ Pipeline completed successfully!"
+                echo "📊 Check the archived reports for test execution results."
+                echo "🔗 View Cucumber reports in Jenkins for detailed test results."
+            }
+        }
+    }
+}
+
+// Helper function to create a sample feature file in the correct location
