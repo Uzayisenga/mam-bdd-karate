@@ -1,4 +1,5 @@
 // The @Library annotation has been removed to allow the pipeline to run without a separate shared library.
+import java.net.URLEncoder
 
 pipeline {
     agent any
@@ -46,8 +47,11 @@ pipeline {
                     withCredentials([string(credentialsId: '01041c05-e42f-4e53-9afb-17332c383af9', variable: 'ZEPHYR_TOKEN')]) {
                         echo "Downloading approved feature files from Zephyr..."
 
+                        // URL-encode the TQL query to handle spaces and special characters
+                        def encodedTQL = URLEncoder.encode(env.TQL, 'UTF-8')
+
                         // Define the API endpoint and query parameters
-                        def api_url = "https://api.zephyrscale.smartbear.com/v2/testcases/search?tql=${env.TQL}&projectKey=${params.ZEPHYR_PROJECT_KEY}&fields=script,issueKey"
+                        def api_url = "https://api.zephyrscale.smartbear.com/v2/testcases/search?tql=${encodedTQL}&projectKey=${params.ZEPHYR_PROJECT_KEY}&fields=script,issueKey"
                         def target_path = params.ZEPHYR_TARGET_PATH
 
                         // Use a curl command to fetch the data
