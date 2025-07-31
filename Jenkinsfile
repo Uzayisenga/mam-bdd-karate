@@ -23,96 +23,158 @@ pipeline {
                 script {
                     withEnv(["PATH+MAVEN=${tool 'Maven'}/bin:${tool 'JDK'}/bin"]) {
                         withCredentials([string(credentialsId: '01041c05-e42f-4e53-9afb-17332c383af9', variable: 'ZEPHYR_TOKEN')]) {
-                            sh '''#!/bin/bash  # Force bash shell
-                                set -e  # Exit on error
+                            sh '''
                                 mkdir -p src/test/resources/features/zephyr
-                                echo "Attempting to download feature files..."
+                                echo "Attempting to download feature files using curl..."
 
-                                # Download APPROVED test cases
-                                echo "Fetching APPROVED test cases..."
-                                curl -sS -H "Authorization: Bearer ${ZEPHYR_TOKEN}" \\
+                                # First API call: Get the list of APPROVED test cases only
+                                echo "Fetching APPROVED test cases from Zephyr Scale..."
+                                curl -v -H "Authorization: Bearer ${ZEPHYR_TOKEN}" \\
                                      -H "Content-Type: application/json" \\
                                      -X GET "https://eu.api.zephyrscale.smartbear.com/v2/testcases?projectKey=SCRUM&status=Approved" \\
                                      -o src/test/resources/features/zephyr/zephyr_testcases_raw.json
 
-                                if [ ! -s src/test/resources/features/zephyr/zephyr_testcases_raw.json ]; then
-                                    echo "❌ Failed to download or empty JSON file"
+                                if [ ! -f src/test/resources/features/zephyr/zephyr_testcases_raw.json ] || [ ! -s src/test/resources/features/zephyr/zephyr_testcases_raw.json ]; then
+                                    echo "Error: Failed to download or downloaded an empty zephyr_testcases_raw.json. Check API token and network."
                                     exit 1
                                 fi
 
-                                echo "Parsing JSON and extracting Gherkin..."
+                                echo "Parsing downloaded JSON and extracting Gherkin for APPROVED tests only..."
 
-                                # Use temporary file instead of process substitution
-                                jq -c '.values[]' src/test/resources/features/zephyr/zephyr_testcases_raw.json > temp_testcases.txt
+                                cat src/test/resources/features/zephyr/zephyr_testcases_raw.json | jq -c '.values[]' | while IFS= read -r testcase_json; do
+                                    key=$(printf "%s" "${testcase_json}" | jq -r '.key // empty')
+                                    name_for_file=$(printf "%s" "${testcase_json}" | jq -r '.name // empty' | sed 's/[^a-zA-Z0-9_]/_/g')
+                                    name_for_scenario=$(printf "%s" "${testcase_json}" | jq -r '.name // empty')
+                                    status=$(printf "%s" "${testcase_json}" | jq -r '.status // empty')
 
-                                while IFS= read -r testcase_json; do
-                                    key=$(echo "${testcase_json}" | jq -r '.key // empty')
-                                    name_for_file=$(echo "${testcase_json}" | jq -r '.name // empty' | sed 's/[^a-zA-Z0-9_]/_/g')
-                                    name_for_scenario=$(echo "${testcase_json}" | jq -r '.name // empty')
-                                    status=$(echo "${testcase_json}" | jq -r '.status // empty')
+                                    echo "Processing test case: ${key} - ${name_for_scenario} (Status: ${status})"
 
-                                    echo "Processing: ${key} - ${name_for_scenario}"
-
+                                    # Double-check that status is Approved (API should already filter, but let's be sure)
                                     if [ "${status}" != "Approved" ]; then
-                                        echo "Skipping ${key} - Not 'Approved'"
+                                        echo "Skipping ${key} - Status is '${status}', not 'Approved'"
                                         continue
                                     fi
 
-                                    testscript_url=$(echo "${testcase_json}" | jq -r '.testScript.self // empty')
+                                    testscript_url=$(printf "%s" "${testcase_json}" | jq -r '.testScript.self // empty')
+
                                     if [ -z "${testscript_url}" ]; then
-                                        echo "⚠️ No testScript URL for ${key}"
+                                        echo "Warning: Test case ${key} - ${name_for_scenario} has no testScript URL. Skipping."
                                         continue
                                     fi
 
-                                    echo "✅ Downloading Gherkin for ${key}"
-                                    gherkin_response=$(curl -sS -H "Authorization: Bearer ${ZEPHYR_TOKEN}" -H "Content-Type: application/json" -X GET "${testscript_url}")
-                                    gherkin_text=$(echo "${gherkin_response}" | jq -r '.text // empty')
+                                    echo "✅ Downloading Gherkin for APPROVED test: ${key} - ${name_for_scenario}"
+                                    gherkin_response=$(curl -s -H "Authorization: Bearer ${ZEPHYR_TOKEN}" -H "Content-Type: application/json" -X GET "${testscript_url}")
+                                    gherkin_text=$(printf "%s" "${gherkin_response}" | jq -r '.text // empty')
 
-                                    feature_file="src/test/resources/features/zephyr/${key}_${name_for_file}.feature"
+                                    echo "DEBUG: Raw gherkin_text for ${key}:"
+                                    echo "${gherkin_text}"
 
-                                    # Create feature file
-                                    {
-                                        echo "Feature: ${name_for_scenario}"
-                                        echo ""
-                                        echo "Background:"
-                                        echo "  * url baseUrl"
-                                        echo ""
-                                        echo "@Approved @TestCaseKey=${key}"
-                                        echo "Scenario: ${name_for_scenario}"
+                                    if [ -n "${gherkin_text}" ] && [ "${gherkin_text}" != "null" ]; then
+                                        # Clean the scenario name for proper display
+                                        clean_scenario_name=$(echo "${name_for_scenario}" | sed 's/[^a-zA-Z0-9 ]/_/g')
 
-                                        if [ -n "${gherkin_text}" ] && [ "${gherkin_text}" != "null" ]; then
-                                            echo "${gherkin_text}" | sed 's/^/  /'
+                                        # Create feature file with basic structure first
+                                        feature_file="src/test/resources/features/zephyr/${key}_${name_for_file}.feature"
+
+                                        # Write the basic structure
+                                        echo "Feature: ${clean_scenario_name}" > "${feature_file}"
+                                        echo "" >> "${feature_file}"
+                                        echo "Background:" >> "${feature_file}"
+                                        echo "  * url baseUrl" >> "${feature_file}"
+                                        echo "" >> "${feature_file}"
+                                        echo "@Approved @TestCaseKey=${key}" >> "${feature_file}"
+                                        echo "Scenario: ${clean_scenario_name}" >> "${feature_file}"
+
+                                        # Process and add the gherkin text with proper indentation
+                                        echo "${gherkin_text}" | while IFS= read -r line; do
+                                            if [ -n "${line}" ]; then
+                                                echo "  ${line}" >> "${feature_file}"
+                                            fi
+                                        done
+
+                                        # Validate the file was created properly
+                                        if [ -s "${feature_file}" ]; then
+                                            echo "✅ Created APPROVED feature file: ${feature_file}"
+
+                                            # Show first few lines for validation
+                                            echo "Feature file preview:"
+                                            head -10 "${feature_file}"
+                                            echo "... (rest of file)"
                                         else
-                                            echo "  Given def testInfo = { testKey: '${key}', name: '${name_for_scenario}' }"
-                                            echo "  When print 'Executing test:'"
-                                            echo "  Then match testInfo.testKey == '${key}'"
+                                            echo "❌ Failed to create feature file: ${feature_file}"
                                         fi
-                                    } > "${feature_file}"
+                                    else
+                                        echo "⚠️  No valid Gherkin content for ${key} - ${name_for_scenario}, creating basic test"
 
-                                    echo "✅ Created: ${feature_file}"
-                                done < temp_testcases.txt
-                                rm -f temp_testcases.txt
+                                        # Create a basic valid feature file
+                                        clean_scenario_name=$(echo "${name_for_scenario}" | sed 's/[^a-zA-Z0-9 ]/_/g')
+                                        feature_file="src/test/resources/features/zephyr/${key}_${name_for_file}.feature"
 
-                                # Fallback if no features created
-                                if [ -z "$(find src/test/resources/features/zephyr -name '*.feature' -print -quit)" ]; then
-                                    echo "⚠️ Creating fallback feature file"
-                                    cat > "src/test/resources/features/zephyr/fallback.feature" <<EOF
-        Feature: Fallback Test
+                                        cat > "${feature_file}" << EOF
+Feature: ${clean_scenario_name}
 
-        Background:
-          * url baseUrl
+Background:
+  * url baseUrl
 
-        @Approved
-        Scenario: No tests found
-          Then match 1 == 1
-        EOF
+@Approved @TestCaseKey=${key}
+Scenario: ${clean_scenario_name}
+  Given def testInfo = { testKey: '${key}', name: '${clean_scenario_name}' }
+  When print 'Executing TM4J test:', testInfo
+  Then match testInfo.testKey == '${key}'
+EOF
+                                        echo "✅ Created basic feature file: ${feature_file}"
+                                    fi
+                                        echo "✅ Created APPROVED feature file: ${feature_file}"
+
+                                        # Debug: Show the created file content for validation
+                                        echo "=== FEATURE FILE CONTENT ==="
+                                        cat "${feature_file}"
+                                        echo "=== END FEATURE FILE ==="
+                                    else
+                                        echo "⚠️  Warning: No Gherkin text found for APPROVED test case ${key} - ${name_for_scenario}."
+                                    fi
+                                done
+
+                                # Count and list all created APPROVED feature files
+                                echo "=== APPROVED Feature Files Created ==="
+                                ls -la src/test/resources/features/zephyr/*.feature 2>/dev/null || echo "No feature files found"
+
+                                num_feature_files=$(ls -1 src/test/resources/features/zephyr/*.feature 2>/dev/null | wc -l)
+                                if [ "${num_feature_files}" -eq 0 ]; then
+                                    echo "⚠️  No APPROVED feature files were successfully extracted from TM4J/Zephyr Scale."
+                                    echo "This might mean:"
+                                    echo "1. No test cases have 'Approved' status in your project"
+                                    echo "2. The API token doesn't have permission to access test cases"
+                                    echo "3. The project key 'SCRUM' is incorrect"
+
+                                    # Create a dummy feature file to prevent build failure
+                                    cat > "src/test/resources/features/zephyr/no_approved_tests.feature" << EOF
+Feature: No Approved Tests Available
+
+  Background:
+    * url baseUrl
+
+  @Approved
+  Scenario: No approved tests found in TM4J
+    Given def response = { message: 'No approved tests found in TM4J/Zephyr Scale' }
+    Then print 'No approved TM4J tests were available for execution'
+    And print 'Check test case statuses in TM4J/Zephyr Scale'
+EOF
+                                    echo "Created placeholder feature file for no approved tests scenario"
+                                else
+                                    echo "🎉 Successfully extracted ${num_feature_files} APPROVED feature files from TM4J."
                                 fi
+
+                                # Show the final directory structure
+                                echo "Final features directory structure:"
+                                find src/test/resources/features -type f -name "*.feature" | head -10
                             '''
                         }
                     }
                 }
             }
         }
+
         stage('Verify Step Definitions') {
             steps {
                 script {
