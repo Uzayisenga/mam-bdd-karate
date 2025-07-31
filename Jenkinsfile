@@ -133,25 +133,23 @@ pipeline {
 
                                             # Create a dummy feature file to prevent build failure
                                             cat > "src/test/resources/features/zephyr/no_approved_tests.feature" << EOF
-        Feature: No Approved Tests Available
+                                            Feature: No Approved Tests Available
+                                            Background:
+                                            * url baseUrl
+                                            @Approved
+                                            Scenario: No approved tests found in TM4J
+                                                        Given def response = { message: 'No approved tests found in TM4J/Zephyr Scale' }
+                                                        Then print 'No approved TM4J tests were available for execution'
+                                                        And print 'Check test case statuses in TM4J/Zephyr Scale'
+                                                    EOF
+                                                    echo "Created placeholder feature file for no approved tests scenario"
+                                                    else
+                                                    echo "🎉 Successfully extracted ${num_feature_files} APPROVED feature files from TM4J."
+                                       fi
+                                       # Show the final directory structure
+                                       echo "Final features directory structure:"
+                                       find src/test/resources/features -type f -name "*.feature" | head -10
 
-          Background:
-            * url baseUrl
-
-          @Approved
-          Scenario: No approved tests found in TM4J
-            Given def response = { message: 'No approved tests found in TM4J/Zephyr Scale' }
-            Then print 'No approved TM4J tests were available for execution'
-            And print 'Check test case statuses in TM4J/Zephyr Scale'
-        EOF
-                                            echo "Created placeholder feature file for no approved tests scenario"
-                                        else
-                                            echo "🎉 Successfully extracted ${num_feature_files} APPROVED feature files from TM4J."
-                                        fi
-
-                                        # Show the final directory structure
-                                        echo "Final features directory structure:"
-                                        find src/test/resources/features -type f -name "*.feature" | head -10
                                     '''
                                 }
                             }
