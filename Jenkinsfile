@@ -1,3 +1,5 @@
+@Library('mmgUat@master') _ // Added this line to load the shared library
+
 pipeline {
     agent any
 
