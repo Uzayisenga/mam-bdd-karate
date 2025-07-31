@@ -23,13 +23,14 @@ pipeline {
                 script {
                     withEnv(["PATH+MAVEN=${tool 'Maven'}/bin:${tool 'JDK'}/bin"]) {
                         withCredentials([string(credentialsId: '01041c05-e42f-4e53-9afb-17332c383af9', variable: 'ZEPHYR_TOKEN')]) {
-                            sh '''
+                            sh '''#!/bin/bash  # Force bash shell
+                                set -e  # Exit on error
                                 mkdir -p src/test/resources/features/zephyr
-                                echo "Attempting to download feature files using curl..."
+                                echo "Attempting to download feature files..."
 
-                                # Get APPROVED test cases
-                                echo "Fetching APPROVED test cases from Zephyr Scale..."
-                                curl -v -H "Authorization: Bearer ${ZEPHYR_TOKEN}" \\
+                                # Download APPROVED test cases
+                                echo "Fetching APPROVED test cases..."
+                                curl -sS -H "Authorization: Bearer ${ZEPHYR_TOKEN}" \\
                                      -H "Content-Type: application/json" \\
                                      -X GET "https://eu.api.zephyrscale.smartbear.com/v2/testcases?projectKey=SCRUM&status=Approved" \\
                                      -o src/test/resources/features/zephyr/zephyr_testcases_raw.json
@@ -39,16 +40,18 @@ pipeline {
                                     exit 1
                                 fi
 
-                                echo "Parsing downloaded JSON and extracting Gherkin..."
+                                echo "Parsing JSON and extracting Gherkin..."
 
-                                # FIX: Use process substitution to avoid subshell issues
+                                # Use temporary file instead of process substitution
+                                jq -c '.values[]' src/test/resources/features/zephyr/zephyr_testcases_raw.json > temp_testcases.txt
+
                                 while IFS= read -r testcase_json; do
                                     key=$(echo "${testcase_json}" | jq -r '.key // empty')
                                     name_for_file=$(echo "${testcase_json}" | jq -r '.name // empty' | sed 's/[^a-zA-Z0-9_]/_/g')
                                     name_for_scenario=$(echo "${testcase_json}" | jq -r '.name // empty')
                                     status=$(echo "${testcase_json}" | jq -r '.status // empty')
 
-                                    echo "Processing: ${key} - ${name_for_scenario} (Status: ${status})"
+                                    echo "Processing: ${key} - ${name_for_scenario}"
 
                                     if [ "${status}" != "Approved" ]; then
                                         echo "Skipping ${key} - Not 'Approved'"
@@ -62,35 +65,47 @@ pipeline {
                                     fi
 
                                     echo "✅ Downloading Gherkin for ${key}"
-                                    gherkin_response=$(curl -s -H "Authorization: Bearer ${ZEPHYR_TOKEN}" -H "Content-Type: application/json" -X GET "${testscript_url}")
+                                    gherkin_response=$(curl -sS -H "Authorization: Bearer ${ZEPHYR_TOKEN}" -H "Content-Type: application/json" -X GET "${testscript_url}")
                                     gherkin_text=$(echo "${gherkin_response}" | jq -r '.text // empty')
 
                                     feature_file="src/test/resources/features/zephyr/${key}_${name_for_file}.feature"
 
-                                    # FIX: Use printf to avoid here-doc syntax issues
-                                    printf "Feature: %s\n\nBackground:\n  * url baseUrl\n\n@Approved @TestCaseKey=%s\nScenario: %s\n" \\
-                                        "${name_for_scenario}" "${key}" "${name_for_scenario}" > "${feature_file}"
+                                    # Create feature file
+                                    {
+                                        echo "Feature: ${name_for_scenario}"
+                                        echo ""
+                                        echo "Background:"
+                                        echo "  * url baseUrl"
+                                        echo ""
+                                        echo "@Approved @TestCaseKey=${key}"
+                                        echo "Scenario: ${name_for_scenario}"
 
-                                    if [ -n "${gherkin_text}" ] && [ "${gherkin_text}" != "null" ]; then
-                                        echo "${gherkin_text}" | while IFS= read -r line; do
-                                            if [ -n "${line}" ]; then
-                                                printf "  %s\n" "${line}" >> "${feature_file}"
-                                            fi
-                                        done
-                                    else
-                                        printf "  Given def testInfo = { testKey: '%s', name: '%s' }\n" "${key}" "${name_for_scenario}" >> "${feature_file}"
-                                        printf "  When print 'Executing test:'\n" >> "${feature_file}"
-                                        printf "  Then match testInfo.testKey == '%s'\n" "${key}" >> "${feature_file}"
-                                    fi
+                                        if [ -n "${gherkin_text}" ] && [ "${gherkin_text}" != "null" ]; then
+                                            echo "${gherkin_text}" | sed 's/^/  /'
+                                        else
+                                            echo "  Given def testInfo = { testKey: '${key}', name: '${name_for_scenario}' }"
+                                            echo "  When print 'Executing test:'"
+                                            echo "  Then match testInfo.testKey == '${key}'"
+                                        fi
+                                    } > "${feature_file}"
 
                                     echo "✅ Created: ${feature_file}"
-                                done < <(jq -c '.values[]' src/test/resources/features/zephyr/zephyr_testcases_raw.json)
+                                done < temp_testcases.txt
+                                rm -f temp_testcases.txt
 
                                 # Fallback if no features created
-                                if ! find src/test/resources/features/zephyr -name '*.feature' | grep -q .; then
+                                if [ -z "$(find src/test/resources/features/zephyr -name '*.feature' -print -quit)" ]; then
                                     echo "⚠️ Creating fallback feature file"
-                                    printf "Feature: Fallback Test\nBackground:\n  * url baseUrl\n\n@Approved\nScenario: No tests found\n  Then match 1 == 1\n" \\
-                                        > src/test/resources/features/zephyr/fallback.feature
+                                    cat > "src/test/resources/features/zephyr/fallback.feature" <<EOF
+        Feature: Fallback Test
+
+        Background:
+          * url baseUrl
+
+        @Approved
+        Scenario: No tests found
+          Then match 1 == 1
+        EOF
                                 fi
                             '''
                         }
