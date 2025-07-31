@@ -97,9 +97,7 @@ pipeline {
 
                                    if [ -s "${feature_file}" ]; then
                                        echo "✅ Created feature file: ${feature_file}"
-                                   else
-                                       echo "❌ Empty feature file created for ${key}!"
-
+                                   fi
                                done
 
                                # List created feature files
