@@ -29,9 +29,9 @@ pipeline {
 
                                        # Get APPROVED test cases
                                        echo "Fetching APPROVED test cases from Zephyr Scale..."
-                                       curl -v -H "Authorization: Bearer ${ZEPHYR_TOKEN}" \
-                                            -H "Content-Type: application/json" \
-                                            -X GET "https://eu.api.zephyrscale.smartbear.com/v2/testcases?projectKey=SCRUM&status=Approved" \
+                                       curl -v -H "Authorization: Bearer ${ZEPHYR_TOKEN}" \\
+                                            -H "Content-Type: application/json" \\
+                                            -X GET "https://eu.api.zephyrscale.smartbear.com/v2/testcases?projectKey=SCRUM&status=Approved" \\
                                             -o src/test/resources/features/zephyr/zephyr_testcases_raw.json
 
                                        if [ ! -s src/test/resources/features/zephyr/zephyr_testcases_raw.json ]; then
@@ -84,17 +84,17 @@ pipeline {
                                            else
                                                echo "⚠️  No valid Gherkin content for ${key}, creating dummy test"
                                                cat > "${feature_file}" << EOF
-                                       Feature: ${clean_scenario_name}
+        Feature: ${clean_scenario_name}
 
-                                       Background:
-                                         * url baseUrl
+        Background:
+          * url baseUrl
 
-                                       @Approved @TestCaseKey=${key}
-                                       Scenario: ${clean_scenario_name}
-                                         Given def testInfo = { testKey: '${key}', name: '${clean_scenario_name}' }
-                                         When print 'Executing TM4J test:', testInfo
-                                         Then match testInfo.testKey == '${key}'
-                                       EOF
+        @Approved @TestCaseKey=${key}
+        Scenario: ${clean_scenario_name}
+          Given def testInfo = { testKey: '${key}', name: '${clean_scenario_name}' }
+          When print 'Executing TM4J test:', testInfo
+          Then match testInfo.testKey == '${key}'
+        EOF
                                            fi
 
                                            if [ -s "${feature_file}" ]; then
@@ -113,16 +113,16 @@ pipeline {
                                        if [ "${feature_count}" -eq 0 ]; then
                                            echo "⚠️ No APPROVED feature files found. Creating fallback..."
                                            cat > "src/test/resources/features/zephyr/no_approved_tests.feature" << EOF
-                                       Feature: No Approved Tests Found
+        Feature: No Approved Tests Found
 
-                                       Background:
-                                         * url baseUrl
+        Background:
+          * url baseUrl
 
-                                       @Approved
-                                       Scenario: Notify no tests
-                                         Given print 'No approved test cases downloaded'
-                                         Then match true == true
-                                       EOF
+        @Approved
+        Scenario: Notify no tests
+          Given print 'No approved test cases downloaded'
+          Then match true == true
+        EOF
                                        fi
 
                                     '''
@@ -131,7 +131,6 @@ pipeline {
                         }
                     }
                 }
-
         stage('Verify Step Definitions') {
             steps {
                 script {
