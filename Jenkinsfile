@@ -93,12 +93,6 @@ pipeline {
         When print 'Executing TM4J test:', testInfo
         Then match testInfo.testKey == '${key}'
         EOF
-                                   fi
-
-                                   if [ -s "${feature_file}" ]; then
-                                       echo "✅ Created feature file: ${feature_file}"
-                                   fi
-                               done
 
                                # List created feature files
                                echo "=== Feature Files Downloaded ==="
