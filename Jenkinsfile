@@ -120,7 +120,7 @@ pipeline {
                 Scenario: Notify no tests
                   Given print 'No approved test cases downloaded'
                   Then match true == true
-                EOF
+        EOF
                                fi
                             '''
                         }
