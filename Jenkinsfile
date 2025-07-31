@@ -301,7 +301,7 @@ pipeline {
 
                         // URL-encode the TQL query
                         def encodedTQL = URLEncoder.encode(params.ZEPHYR_TQL, 'UTF-8')
-                        def api_url = "https://api.zephyrscale.smartbear.com/v2/testcases/search?tql=${encodedTQL}&projectKey=${params.ZEPHYR_PROJECT_KEY}&fields=script,issueKey,name,status"
+                        def api_url = "https://eu.api.zephyrscale.smartbear.com/v2/testcases/search?tql=${encodedTQL}&projectKey=${params.ZEPHYR_PROJECT_KEY}&fields=script,issueKey,name,status"
 
                         echo "API URL: ${api_url}"
 
