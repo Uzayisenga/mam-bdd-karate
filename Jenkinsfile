@@ -45,7 +45,8 @@ pipeline {
                                     key=$(printf "%s" "${testcase_json}" | jq -r '.key // empty')
                                     name_for_file=$(printf "%s" "${testcase_json}" | jq -r '.name // empty' | sed 's/[^a-zA-Z0-9_]/_/g')
                                     name_for_scenario=$(printf "%s" "${testcase_json}" | jq -r '.name // empty')
-                                    status=$(printf "%s" "${testcase_json}" | jq -r '.status // empty')
+                                    # CORRECTED LINE: Extract the 'name' from the 'status' object
+                                    status=$(printf "%s" "${testcase_json}" | jq -r '.status.name // empty')
 
                                     echo "Processing test case: ${key} - ${name_for_scenario} (Status: ${status})"
 
