@@ -43,14 +43,48 @@ pipeline {
 
                 // Use the shared library function to download approved features
                 script {
-                    // This is where the code from the shared library's downloadFeatureFiles function would go.
-                    // For example, it would make an API call to Zephyr Scale to get the feature files.
-                    // Since the exact implementation is unknown, this is represented by a comment.
                     withCredentials([string(credentialsId: '01041c05-e42f-4e53-9afb-17332c383af9', variable: 'ZEPHYR_TOKEN')]) {
                         echo "Downloading approved feature files from Zephyr..."
-                        // Add the curl command or other logic here to fetch feature files using the Zephyr API.
-                        // Example (conceptual): sh "curl -H 'Authorization: Bearer ${ZEPHYR_TOKEN}' ... > ${params.ZEPHYR_TARGET_PATH}/feature-file.feature"
-                        echo "This stage is now ready for the download logic to be implemented here directly."
+
+                        // Define the API endpoint and query parameters
+                        def api_url = "https://api.zephyrscale.smartbear.com/v2/testcases/search?tql=${env.TQL}&projectKey=${params.ZEPHYR_PROJECT_KEY}&fields=script,issueKey"
+                        def target_path = params.ZEPHYR_TARGET_PATH
+
+                        // Use a curl command to fetch the data
+                        def response = sh(script: "curl -s -X GET '${api_url}' -H 'Authorization: Bearer ${ZEPHYR_TOKEN}'", returnStdout: true).trim()
+
+                        // Check if the response is empty or an error
+                        if (!response) {
+                            echo "❌ Failed to get a response from the Zephyr Scale API. Check credentials or network."
+                            return
+                        }
+
+                        // Parse the JSON response
+                        def json = new groovy.json.JsonSlurper().parseText(response)
+
+                        // Check if the response contains test cases
+                        if (json.total > 0) {
+                            echo "Found ${json.total} approved test cases. Downloading..."
+
+                            // Ensure the target directory exists
+                            sh "mkdir -p ${target_path}"
+
+                            // Iterate over the test cases and create feature files
+                            json.testCases.each { testCase ->
+                                def issueKey = testCase.issueKey
+                                def scriptContent = testCase.script
+
+                                if (scriptContent) {
+                                    def featureFileName = "${target_path}/${issueKey}.feature"
+                                    writeFile file: featureFileName, text: scriptContent
+                                    echo "✅ Wrote feature file: ${featureFileName}"
+                                } else {
+                                    echo "⚠️  Test case ${issueKey} has no script content. Skipping."
+                                }
+                            }
+                        } else {
+                            echo "❌ No approved test cases found in Zephyr Scale with the TQL: '${env.TQL}'."
+                        }
                     }
                 }
 
@@ -59,9 +93,8 @@ pipeline {
                     def count = sh(script: "find ${params.ZEPHYR_TARGET_PATH} -name '*.feature' | wc -l", returnStdout: true).trim()
                     echo "Found ${count} feature files in ${params.ZEPHYR_TARGET_PATH}"
                     if (count == '0') {
-                        // This error will now occur if the download logic is not correctly implemented.
-                        // The pipeline will continue until the logic is added.
-                        echo "❌ No approved test cases downloaded from Zephyr. Build will proceed, but tests may be skipped."
+                        // The pipeline will now fail here if no features are downloaded.
+                        error "❌ No approved test cases downloaded from Zephyr. Cannot run tests."
                     }
                 }
             }
