@@ -86,8 +86,8 @@ pipeline {
                                                 echo "${gherkin_text}" | while IFS= read -r line; do
                                                     if [ -n "${line}" ]; then
                                                         echo "  ${line}" >> "${feature_file}"
-                                                    fi # <--- CRUCIAL: Added missing 'fi' for the inner 'if [ -n "${line}" ]'
-                                                done # End of inner while loop
+                                                    fi
+                                                done
                                                 echo "✅ Created APPROVED feature file: ${feature_file}"
                                             else # gherkin_text is empty or null
                                                 echo "⚠️  No valid Gherkin content for ${key} - ${name_for_scenario}, creating basic test"
@@ -105,7 +105,7 @@ pipeline {
           Then match testInfo.testKey == '${key}'
         EOF
                                                 echo "✅ Created basic feature file (no Gherkin content): ${feature_file}"
-                                            fi # End of if-else for gherkin_text content
+                                            fi
 
                                             # Consolidated debug print after the file is certainly created (either with real Gherkin or basic)
                                             if [ -s "${feature_file}" ]; then
@@ -133,23 +133,25 @@ pipeline {
 
                                             # Create a dummy feature file to prevent build failure
                                             cat > "src/test/resources/features/zephyr/no_approved_tests.feature" << EOF
-                                            Feature: No Approved Tests Available
-                                            Background:
-                                            * url baseUrl
-                                            @Approved
-                                            Scenario: No approved tests found in TM4J
-                                                        Given def response = { message: 'No approved tests found in TM4J/Zephyr Scale' }
-                                                        Then print 'No approved TM4J tests were available for execution'
-                                                        And print 'Check test case statuses in TM4J/Zephyr Scale'
-                                                    EOF
-                                                    echo "Created placeholder feature file for no approved tests scenario"
-                                                    else
-                                                    echo "🎉 Successfully extracted ${num_feature_files} APPROVED feature files from TM4J."
-                                       fi
-                                       # Show the final directory structure
-                                       echo "Final features directory structure:"
-                                       find src/test/resources/features -type f -name "*.feature" | head -10
+        Feature: No Approved Tests Available
 
+        Background:
+          * url baseUrl
+
+        @Approved
+        Scenario: No approved tests found in TM4J
+          Given def response = { message: 'No approved tests found in TM4J/Zephyr Scale' }
+          Then print 'No approved TM4J tests were available for execution'
+          And print 'Check test case statuses in TM4J/Zephyr Scale'
+        EOF
+                                            echo "Created placeholder feature file for no approved tests scenario"
+                                        else
+                                            echo "🎉 Successfully extracted ${num_feature_files} APPROVED feature files from TM4J."
+                                        fi
+
+                                        # Show the final directory structure
+                                        echo "Final features directory structure:"
+                                        find src/test/resources/features -type f -name "*.feature" | head -10
                                     '''
                                 }
                             }
