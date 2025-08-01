@@ -929,4 +929,3 @@ EOF
     }
 }
 
-// Helper function to create a sample feature file in the correct location
