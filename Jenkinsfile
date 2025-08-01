@@ -114,9 +114,9 @@ pipeline {
                                 curl -s -w "HTTPSTATUS:%{http_code}" \\
                                 --connect-timeout 10 \\
                                 --max-time 60 \\
-                                -X GET '${api_url}' \\
-                                -H 'Authorization: Bearer \${ZEPHYR_TOKEN}' \\
-                                -H 'Content-Type: application/json'
+                                -X GET "${api_url}" \\
+                                -H "Authorization: Bearer \${ZEPHYR_TOKEN}" \\
+                                -H "Content-Type: application/json"
                             """,
                             returnStdout: true
                         ).trim()
