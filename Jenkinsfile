@@ -225,7 +225,7 @@ pipeline {
 
                                         if (scriptContent && scriptContent.trim()) {
                                             // Validate feature file content
-                                            if (scriptContent.contains("Features:")) {
+                                            if (scriptContent.contains("Feature:")) {
                                                 def featureFileName = "src/test/resources/features/${issueKey}.feature"
                                                 writeFile file: featureFileName, text: scriptContent
                                                 echo "✅ Created: ${featureFileName}"
