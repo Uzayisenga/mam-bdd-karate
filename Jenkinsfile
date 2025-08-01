@@ -923,3 +923,4 @@ EOF
                 echo "5. Feature file location and Karate classpath settings"
             }
         }
+}
