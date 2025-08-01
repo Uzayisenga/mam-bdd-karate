@@ -293,7 +293,9 @@ pipeline {
 
         stage('Debug Zephyr Credentials') {
             when {
-                not { params.SKIP_ZEPHYR_DOWNLOAD }
+                not {
+                    params.SKIP_ZEPHYR_DOWNLOAD == true
+                }
             }
             steps {
                 script {
@@ -330,7 +332,9 @@ pipeline {
 
         stage('Download Approved Feature Files from Zephyr') {
             when {
-                not { params.SKIP_ZEPHYR_DOWNLOAD }
+                not {
+                    params.SKIP_ZEPHYR_DOWNLOAD == true
+                }
             }
             steps {
                 sh 'rm -rf src/test/resources/features/* || true'
@@ -529,7 +533,7 @@ pipeline {
 
         stage('Use Existing Features') {
             when {
-                params.SKIP_ZEPHYR_DOWNLOAD
+                params.SKIP_ZEPHYR_DOWNLOAD == true
             }
             steps {
                 script {
@@ -760,105 +764,105 @@ pipeline {
 }
 EOF
 
-            FILE=\$(find target/karate-reports -name "*.json" | head -n 1)
-        fi
+                            FILE=\$(find target/karate-reports -name "*.json" | head -n 1)
+                        fi
 
-        echo "✅ Using report file: \$FILE"
+                        echo "✅ Using report file: \$FILE"
 
-        # Show file details
-        echo "File details:"
-        echo "  - Size: \$(stat -f%z "\$FILE" 2>/dev/null || stat -c%s "\$FILE" 2>/dev/null || echo 'unknown') bytes"
-        echo "  - First few lines:"
-        head -5 "\$FILE" | sed 's/^/    /'
+                        # Show file details
+                        echo "File details:"
+                        echo "  - Size: \$(stat -f%z "\$FILE" 2>/dev/null || stat -c%s "\$FILE" 2>/dev/null || echo 'unknown') bytes"
+                        echo "  - First few lines:"
+                        head -5 "\$FILE" | sed 's/^/    /'
 
-        # Create ZIP file using jar (part of JDK)
-        ZIP_FILE="cucumber-results-\$(date +%Y%m%d-%H%M%S).zip"
-        echo "📦 Creating ZIP file: \$ZIP_FILE"
+                        # Create ZIP file using jar (part of JDK)
+                        ZIP_FILE="cucumber-results-\$(date +%Y%m%d-%H%M%S).zip"
+                        echo "📦 Creating ZIP file: \$ZIP_FILE"
 
-        mkdir -p temp_zip
-        cp "\$FILE" temp_zip/results.json
-        cd temp_zip
-        jar -cfM "../\$ZIP_FILE" results.json
-        cd ..
-        rm -rf temp_zip
+                        mkdir -p temp_zip
+                        cp "\$FILE" temp_zip/results.json
+                        cd temp_zip
+                        jar -cfM "../\$ZIP_FILE" results.json
+                        cd ..
+                        rm -rf temp_zip
 
-        if [ ! -f "\$ZIP_FILE" ]; then
-            echo "❌ Failed to create ZIP file!"
-            exit 1
-        fi
+                        if [ ! -f "\$ZIP_FILE" ]; then
+                            echo "❌ Failed to create ZIP file!"
+                            exit 1
+                        fi
 
-        echo "✅ ZIP file created successfully: \$(ls -lh "\$ZIP_FILE")"
+                        echo "✅ ZIP file created successfully: \$(ls -lh "\$ZIP_FILE")"
 
-        # Prepare upload parameters
-        TIMESTAMP=\$(date +"%Y-%m-%d_%H-%M-%S")
-        CYCLE_NAME="Jenkins_Auto_\$TIMESTAMP"
-        CYCLE_DESC="Automated%20test%20execution%20from%20Jenkins%20pipeline"
+                        # Prepare upload parameters
+                        TIMESTAMP=\$(date +"%Y-%m-%d_%H-%M-%S")
+                        CYCLE_NAME="Jenkins_Auto_\$TIMESTAMP"
+                        CYCLE_DESC="Automated%20test%20execution%20from%20Jenkins%20pipeline"
 
-        echo "📋 Upload parameters:"
-        echo "  - Project: ${params.ZEPHYR_PROJECT_KEY}"
-        echo "  - Cycle: \$CYCLE_NAME"
-        echo "  - Endpoint: ${baseUrl}"
+                        echo "📋 Upload parameters:"
+                        echo "  - Project: ${params.ZEPHYR_PROJECT_KEY}"
+                        echo "  - Cycle: \$CYCLE_NAME"
+                        echo "  - Endpoint: ${baseUrl}"
 
-        # Upload to Zephyr Scale
-        UPLOAD_URL="${baseUrl}/v2/automations/executions/cucumber"
-        PARAMS="projectKey=${params.ZEPHYR_PROJECT_KEY}&autoCreateTestCases=true&testCycleName=\$CYCLE_NAME&testCycleDescription=\$CYCLE_DESC&jiraProjectVersion=10001&folderId=root"
+                        # Upload to Zephyr Scale
+                        UPLOAD_URL="${baseUrl}/v2/automations/executions/cucumber"
+                        PARAMS="projectKey=${params.ZEPHYR_PROJECT_KEY}&autoCreateTestCases=true&testCycleName=\$CYCLE_NAME&testCycleDescription=\$CYCLE_DESC&jiraProjectVersion=10001&folderId=root"
 
-        echo "🚀 Uploading to Zephyr Scale..."
-        RESPONSE=\$(curl -s -w "HTTPSTATUS:%{http_code}" \\
-            --connect-timeout 30 \\
-            --max-time 300 \\
-            -X POST "\$UPLOAD_URL?\$PARAMS" \\
-            -H "Authorization: Bearer \${ZEPHYR_TOKEN}" \\
-            -F "file=@\$ZIP_FILE")
+                        echo "🚀 Uploading to Zephyr Scale..."
+                        RESPONSE=\$(curl -s -w "HTTPSTATUS:%{http_code}" \\
+                            --connect-timeout 30 \\
+                            --max-time 300 \\
+                            -X POST "\$UPLOAD_URL?\$PARAMS" \\
+                            -H "Authorization: Bearer \${ZEPHYR_TOKEN}" \\
+                            -F "file=@\$ZIP_FILE")
 
-        # Parse response
-        HTTP_STATUS=""
-        RESPONSE_BODY=""
-        if echo "\$RESPONSE" | grep -q "HTTPSTATUS:"; then
-            RESPONSE_BODY=\$(echo "\$RESPONSE" | sed 's/HTTPSTATUS:.*//')
-            HTTP_STATUS=\$(echo "\$RESPONSE" | sed 's/.*HTTPSTATUS://')
-        else
-            RESPONSE_BODY="\$RESPONSE"
-        fi
+                        # Parse response
+                        HTTP_STATUS=""
+                        RESPONSE_BODY=""
+                        if echo "\$RESPONSE" | grep -q "HTTPSTATUS:"; then
+                            RESPONSE_BODY=\$(echo "\$RESPONSE" | sed 's/HTTPSTATUS:.*//')
+                            HTTP_STATUS=\$(echo "\$RESPONSE" | sed 's/.*HTTPSTATUS://')
+                        else
+                            RESPONSE_BODY="\$RESPONSE"
+                        fi
 
-        echo "📊 Upload Results:"
-        echo "  - HTTP Status: \$HTTP_STATUS"
-        echo "  - Response: \$RESPONSE_BODY"
+                        echo "📊 Upload Results:"
+                        echo "  - HTTP Status: \$HTTP_STATUS"
+                        echo "  - Response: \$RESPONSE_BODY"
 
-        # Clean up ZIP file
-        rm -f "\$ZIP_FILE"
+                        # Clean up ZIP file
+                        rm -f "\$ZIP_FILE"
 
-        # Analyze and report results
-        case "\$HTTP_STATUS" in
-            200|201)
-                if echo "\$RESPONSE_BODY" | grep -q '"testExecutions"\\|"testExecutionKey"\\|"executions"'; then
-                    echo "✅ Upload successful! Test executions created in Zephyr Scale."
-                elif echo "\$RESPONSE_BODY" | grep -q "Couldn\\'t find any mapped test cases"; then
-                    echo "⚠️ Upload successful, but no test cases were mapped."
-                    echo "💡 This usually means:"
-                    echo "   - @TestCaseKey tags in feature files don't match Zephyr test cases"
-                    echo "   - autoCreateTestCases is enabled, but test case creation failed"
-                    echo "   - Consider checking your feature files for proper @TestCaseKey annotations"
-                else
-                    echo "✅ Upload completed successfully."
-                fi
-                ;;
-            401)
-                echo "❌ Authentication failed - check API token"
-                ;;
-            403)
-                echo "❌ Authorization failed - token lacks required permissions"
-                ;;
-            404)
-                echo "❌ Project not found - check project key: ${params.ZEPHYR_PROJECT_KEY}"
-                ;;
-            *)
-                echo "❌ Upload failed with HTTP status: \$HTTP_STATUS"
-                echo "Response: \$RESPONSE_BODY"
-                ;;
-        esac
+                        # Analyze and report results
+                        case "\$HTTP_STATUS" in
+                            200|201)
+                                if echo "\$RESPONSE_BODY" | grep -q '"testExecutions"\\|"testExecutionKey"\\|"executions"'; then
+                                    echo "✅ Upload successful! Test executions created in Zephyr Scale."
+                                elif echo "\$RESPONSE_BODY" | grep -q "Couldn\\'t find any mapped test cases"; then
+                                    echo "⚠️ Upload successful, but no test cases were mapped."
+                                    echo "💡 This usually means:"
+                                    echo "   - @TestCaseKey tags in feature files don't match Zephyr test cases"
+                                    echo "   - autoCreateTestCases is enabled, but test case creation failed"
+                                    echo "   - Consider checking your feature files for proper @TestCaseKey annotations"
+                                else
+                                    echo "✅ Upload completed successfully."
+                                fi
+                                ;;
+                            401)
+                                echo "❌ Authentication failed - check API token"
+                                ;;
+                            403)
+                                echo "❌ Authorization failed - token lacks required permissions"
+                                ;;
+                            404)
+                                echo "❌ Project not found - check project key: ${params.ZEPHYR_PROJECT_KEY}"
+                                ;;
+                            *)
+                                echo "❌ Upload failed with HTTP status: \$HTTP_STATUS"
+                                echo "Response: \$RESPONSE_BODY"
+                                ;;
+                        esac
 
-        echo "⚠️ Continuing pipeline execution to preserve test results..."
+                        echo "⚠️ Continuing pipeline execution to preserve test results..."
                     """
                 }
             }
@@ -919,13 +923,3 @@ EOF
                 echo "5. Feature file location and Karate classpath settings"
             }
         }
-        success {
-            script {
-                echo "✅ Pipeline completed successfully!"
-                echo "📊 Check the archived reports for test execution results."
-                echo "🔗 View Cucumber reports in Jenkins for detailed test results."
-            }
-        }
-    }
-}
-
