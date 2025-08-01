@@ -1,3 +1,4 @@
+// The @Library annotation has been removed to allow the pipeline to run without a separate shared library.
 import java.net.URLEncoder
 
 pipeline {
@@ -38,8 +39,11 @@ pipeline {
 
         stage('Debug Zephyr Credentials') {
             when {
+                // Corrected syntax: Use the 'expression' directive to evaluate the boolean parameter
                 not {
-                    params.SKIP_ZEPHYR_DOWNLOAD == true
+                    expression {
+                        return params.SKIP_ZEPHYR_DOWNLOAD == true
+                    }
                 }
             }
             steps {
@@ -77,8 +81,11 @@ pipeline {
 
         stage('Download Approved Feature Files from Zephyr') {
             when {
+                // Corrected syntax: Use the 'expression' directive to evaluate the boolean parameter
                 not {
-                    params.SKIP_ZEPHYR_DOWNLOAD == true
+                    expression {
+                        return params.SKIP_ZEPHYR_DOWNLOAD == true
+                    }
                 }
             }
             steps {
@@ -278,7 +285,10 @@ pipeline {
 
         stage('Use Existing Features') {
             when {
-                params.SKIP_ZEPHYR_DOWNLOAD == true
+                // Corrected syntax: Use the 'expression' directive to evaluate the boolean parameter
+                expression {
+                    return params.SKIP_ZEPHYR_DOWNLOAD == true
+                }
             }
             steps {
                 script {
