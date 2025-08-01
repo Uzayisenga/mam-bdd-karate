@@ -79,41 +79,227 @@ pipeline {
             }
         }
 
-        stage('Download Approved Feature Files from Zephyr') {
-            when {
-                // Corrected syntax: Use the 'expression' directive to evaluate the boolean parameter
-                not {
-                    expression {
-                        return params.SKIP_ZEPHYR_DOWNLOAD == true
-                    }
-                }
-            }
-            steps {
-                sh 'rm -rf src/test/resources/features/* || true'
+//         stage('Download Approved Feature Files from Zephyr') {
+//             when {
+//                 // Corrected syntax: Use the 'expression' directive to evaluate the boolean parameter
+//                 not {
+//                     expression {
+//                         return params.SKIP_ZEPHYR_DOWNLOAD == true
+//                     }
+//                 }
+//             }
+//             steps {
+//                 sh 'rm -rf src/test/resources/features/* || true'
+//
+//                 script {
+//                     withCredentials([string(credentialsId: '01041c05-e42f-4e53-9afb-17332c383af9', variable: 'ZEPHYR_TOKEN')]) {
+//                         echo "🔄 Downloading test cases from Zephyr Scale..."
+//
+//                         // Determine API endpoint based on parameter
+//                         def baseUrl = params.ZEPHYR_ENDPOINT == 'us' ?
+//                             'https://api.zephyrscale.smartbear.com' :
+//                             'https://eu.api.zephyrscale.smartbear.com'
+//
+//                         echo "Using API endpoint: ${baseUrl}"
+//
+//                         // URL-encode the TQL query
+//                         def encodedTQL = URLEncoder.encode(params.ZEPHYR_TQL, 'UTF-8')
+//                         def api_url = "${baseUrl}/v2/testcases/search?tql=${encodedTQL}&projectKey=${params.ZEPHYR_PROJECT_KEY}&fields=script,issueKey,name,status&maxResults=100"
+//
+//                         echo "API URL: ${api_url}"
+//
+//                         // Make the API call
+//                         def response = sh(
+//                             script: """
+//                                 curl -s -w "HTTPSTATUS:%{http_code}" \\
+//                                 --connect-timeout 10 \\
+//                                 --max-time 60 \\
+//                                 -X GET "${api_url}" \\
+//                                 -H "Authorization: Bearer \${ZEPHYR_TOKEN}" \\
+//                                 -H "Content-Type: application/json"
+//                             """,
+//                             returnStdout: true
+//                         ).trim()
+//
+//                         // Split the response to get HTTP status and body
+//                         def httpStatus = ""
+//                         def responseBody = ""
+//                         if (response.contains("HTTPSTATUS:")) {
+//                             def parts = response.split("HTTPSTATUS:")
+//                             responseBody = parts[0]
+//                             httpStatus = parts[1]
+//                         } else {
+//                             responseBody = response
+//                         }
+//
+//                         echo "HTTP Status: ${httpStatus}"
+//                         echo "Response Body (first 500 chars): ${responseBody.take(500)}..."
+//
+//                         // Enhanced error handling
+//                         if (httpStatus != "200") {
+//                             echo "❌ API call failed with HTTP status: ${httpStatus}"
+//                             echo "Full response: ${responseBody}"
+//
+//                             // Provide specific troubleshooting based on status code
+//                             switch (httpStatus) {
+//                                 case "401":
+//                                     echo "🔒 Authentication failed - Check your API token"
+//                                     echo "   1. Verify credential ID: 01041c05-e42f-4e53-9afb-17332c383af9"
+//                                     echo "   2. Ensure token is valid and not expired"
+//                                     echo "   3. Check token has proper permissions"
+//                                     break
+//                                 case "403":
+//                                     echo "🚫 Authorization failed - Token doesn't have required permissions"
+//                                     break
+//                                 case "404":
+//                                     echo "🔍 Not found - Check project key: ${params.ZEPHYR_PROJECT_KEY}"
+//                                     break
+//                                 case "429":
+//                                     echo "⏱️ Rate limit exceeded - Wait and retry"
+//                                     break
+//                                 default:
+//                                     echo "🌐 Network or server error - Check connectivity"
+//                             }
+//
+//                             if (params.CREATE_SAMPLE_IF_EMPTY) {
+//                                 echo "Creating sample feature file to continue pipeline..."
+//                                 createSampleFeatureFile()
+//                             } else {
+//                                 error "API call failed. Set CREATE_SAMPLE_IF_EMPTY=true to continue with sample data."
+//                             }
+//                             return
+//                         }
+//
+//                         // Parse JSON response
+//                         try {
+//                             def json = new groovy.json.JsonSlurper().parseText(responseBody)
+//
+//                             echo "📊 API Response Analysis:"
+//                             echo "   - Total test cases: ${json.total ?: 'not available'}"
+//                             echo "   - Returned test cases: ${json.testCases?.size() ?: 0}"
+//                             echo "   - Max results setting: ${json.maxResults ?: 'not specified'}"
+//
+//                             if (json.total && json.total > 0 && json.testCases && json.testCases.size() > 0) {
+//                                 echo "✅ Found ${json.total} test cases. Processing ${json.testCases.size()}..."
+//
+//                                 // Create features in the main features directory for Karate to find
+//                                 sh "mkdir -p src/test/resources/features"
+//
+//                                 def processedCount = 0
+//                                 def skippedCount = 0
+//
+//                                 json.testCases.each { testCase ->
+//                                     def issueKey = testCase.issueKey
+//                                     def name = testCase.name ?: "Unnamed Test"
+//                                     def status = testCase.status ?: "Unknown Status"
+//                                     def scriptContent = testCase.script
+//
+//                                     echo "Processing: ${issueKey} - ${name} (${status})"
+//
+//                                     if (scriptContent && scriptContent.trim()) {
+//                                         // Validate feature file content
+//                                         if (scriptContent.contains("Feature:")) {
+//                                             def featureFileName = "src/test/resources/features/${issueKey}.feature"
+//                                             writeFile file: featureFileName, text: scriptContent
+//                                             echo "✅ Created: ${featureFileName}"
+//                                             processedCount++
+//                                         } else {
+//                                             echo "⚠️ ${issueKey} script doesn't contain 'Feature:' - creating enhanced placeholder"
+//                                             createEnhancedPlaceholder(issueKey, name, status, scriptContent)
+//                                             processedCount++
+//                                         }
+//                                     } else {
+//                                         echo "⚠️ ${issueKey} has no script content - creating placeholder"
+//                                         createEnhancedPlaceholder(issueKey, name, status, "")
+//                                         skippedCount++
+//                                     }
+//                                 }
+//
+//                                 echo "✅ Processing complete:"
+//                                 echo "   - Successfully processed: ${processedCount} test cases"
+//                                 echo "   - Placeholders created: ${skippedCount} test cases"
+//                                 echo "   - Total files created: ${processedCount + skippedCount}"
+//
+//                             } else {
+//                                 echo "❌ No test cases found with current criteria"
+//                                 echo "🔍 Troubleshooting suggestions:"
+//                                 echo "   1. Current TQL: '${params.ZEPHYR_TQL}'"
+//                                 echo "   2. Try alternative queries:"
+//                                 echo "      - Empty query (all test cases): ''"
+//                                 echo "      - Different status: 'status = \"Draft\"'"
+//                                 echo "      - Project only: 'projectKey = \"${params.ZEPHYR_PROJECT_KEY}\"'"
+//                                 echo "   3. Check if test cases exist in project '${params.ZEPHYR_PROJECT_KEY}'"
+//
+//                                 if (params.CREATE_SAMPLE_IF_EMPTY) {
+//                                     echo "Creating sample feature file to continue pipeline..."
+//                                     createSampleFeatureFile()
+//                                 } else {
+//                                     error "No test cases found. Set CREATE_SAMPLE_IF_EMPTY=true to continue with sample data."
+//                                 }
+//                             }
+//                         } catch (Exception e) {
+//                             echo "❌ Failed to parse JSON response: ${e.getMessage()}"
+//                             echo "Raw response: ${responseBody}"
+//
+//                             if (params.CREATE_SAMPLE_IF_EMPTY) {
+//                                 echo "Creating sample feature file due to parsing error..."
+//                                 createSampleFeatureFile()
+//                             } else {
+//                                 error "JSON parsing failed. Set CREATE_SAMPLE_IF_EMPTY=true to continue with sample data."
+//                             }
+//                         }
+//                     }
+//                 }
+//
+//                 // Confirm files were downloaded
+//                 script {
+//                     def count = sh(script: "find src/test/resources/features -name '*.feature' 2>/dev/null | wc -l || echo '0'", returnStdout: true).trim()
+//                     echo "📊 Final count: ${count} feature files in src/test/resources/features"
+//
+//                     if (count == '0') {
+//                         echo "❌ No feature files found after processing"
+//                         if (params.CREATE_SAMPLE_IF_EMPTY) {
+//                             echo "Creating emergency sample feature file..."
+//                             createSampleFeatureFile()
+//                             // Recount
+//                             count = sh(script: "find src/test/resources/features -name '*.feature' 2>/dev/null | wc -l || echo '0'", returnStdout: true).trim()
+//                             echo "📊 After creating sample: ${count} feature files"
+//                         }
+//
+//                         if (count == '0') {
+//                             error "❌ Still no feature files available. Cannot proceed with tests."
+//                         }
+//                     }
+//
+//                     // List the feature files for verification
+//                     sh """
+//                         echo '📁 Feature files created:'
+//                         find src/test/resources/features -name '*.feature' -exec echo '   {}' \\; | head -10
+//                         echo ''
+//                         echo '📝 Feature file sizes:'
+//                         find src/test/resources/features -name '*.feature' -exec wc -l {} \\; | head -5
+//                     """
+//                 }
+//             }
+//         }
 
+        stage('Download Approved Feature Files from Zephyr') {
+            steps {
                 script {
                     withCredentials([string(credentialsId: '01041c05-e42f-4e53-9afb-17332c383af9', variable: 'ZEPHYR_TOKEN')]) {
                         echo "🔄 Downloading test cases from Zephyr Scale..."
+                        def baseUrl = 'https://eu.api.zephyrscale.smartbear.com'
 
-                        // Determine API endpoint based on parameter
-                        def baseUrl = params.ZEPHYR_ENDPOINT == 'us' ?
-                            'https://api.zephyrscale.smartbear.com' :
-                            'https://eu.api.zephyrscale.smartbear.com'
+                        // FIXED: Use proper TQL syntax with colon
+                        def tql = URLEncoder.encode("status = \"Approved\"", 'UTF-8')
+                        def api_url = "${baseUrl}/v2/testcases/search?tql=${tql}&projectKey=SCRUM&fields=script,issueKey,name,status&maxResults=100"
 
-                        echo "Using API endpoint: ${baseUrl}"
+                        echo "✅ Correct API URL: ${api_url}"
 
-                        // URL-encode the TQL query
-                        def encodedTQL = URLEncoder.encode(params.ZEPHYR_TQL, 'UTF-8')
-                        def api_url = "${baseUrl}/v2/testcases/search?tql=${encodedTQL}&projectKey=${params.ZEPHYR_PROJECT_KEY}&fields=script,issueKey,name,status&maxResults=100"
-
-                        echo "API URL: ${api_url}"
-
-                        // Make the API call
+                        // Make API call
                         def response = sh(
                             script: """
                                 curl -s -w "HTTPSTATUS:%{http_code}" \\
-                                --connect-timeout 10 \\
-                                --max-time 60 \\
                                 -X GET "${api_url}" \\
                                 -H "Authorization: Bearer \${ZEPHYR_TOKEN}" \\
                                 -H "Content-Type: application/json"
@@ -121,167 +307,11 @@ pipeline {
                             returnStdout: true
                         ).trim()
 
-                        // Split the response to get HTTP status and body
-                        def httpStatus = ""
-                        def responseBody = ""
-                        if (response.contains("HTTPSTATUS:")) {
-                            def parts = response.split("HTTPSTATUS:")
-                            responseBody = parts[0]
-                            httpStatus = parts[1]
-                        } else {
-                            responseBody = response
-                        }
-
-                        echo "HTTP Status: ${httpStatus}"
-                        echo "Response Body (first 500 chars): ${responseBody.take(500)}..."
-
-                        // Enhanced error handling
-                        if (httpStatus != "200") {
-                            echo "❌ API call failed with HTTP status: ${httpStatus}"
-                            echo "Full response: ${responseBody}"
-
-                            // Provide specific troubleshooting based on status code
-                            switch (httpStatus) {
-                                case "401":
-                                    echo "🔒 Authentication failed - Check your API token"
-                                    echo "   1. Verify credential ID: 01041c05-e42f-4e53-9afb-17332c383af9"
-                                    echo "   2. Ensure token is valid and not expired"
-                                    echo "   3. Check token has proper permissions"
-                                    break
-                                case "403":
-                                    echo "🚫 Authorization failed - Token doesn't have required permissions"
-                                    break
-                                case "404":
-                                    echo "🔍 Not found - Check project key: ${params.ZEPHYR_PROJECT_KEY}"
-                                    break
-                                case "429":
-                                    echo "⏱️ Rate limit exceeded - Wait and retry"
-                                    break
-                                default:
-                                    echo "🌐 Network or server error - Check connectivity"
-                            }
-
-                            if (params.CREATE_SAMPLE_IF_EMPTY) {
-                                echo "Creating sample feature file to continue pipeline..."
-                                createSampleFeatureFile()
-                            } else {
-                                error "API call failed. Set CREATE_SAMPLE_IF_EMPTY=true to continue with sample data."
-                            }
-                            return
-                        }
-
-                        // Parse JSON response
-                        try {
-                            def json = new groovy.json.JsonSlurper().parseText(responseBody)
-
-                            echo "📊 API Response Analysis:"
-                            echo "   - Total test cases: ${json.total ?: 'not available'}"
-                            echo "   - Returned test cases: ${json.testCases?.size() ?: 0}"
-                            echo "   - Max results setting: ${json.maxResults ?: 'not specified'}"
-
-                            if (json.total && json.total > 0 && json.testCases && json.testCases.size() > 0) {
-                                echo "✅ Found ${json.total} test cases. Processing ${json.testCases.size()}..."
-
-                                // Create features in the main features directory for Karate to find
-                                sh "mkdir -p src/test/resources/features"
-
-                                def processedCount = 0
-                                def skippedCount = 0
-
-                                json.testCases.each { testCase ->
-                                    def issueKey = testCase.issueKey
-                                    def name = testCase.name ?: "Unnamed Test"
-                                    def status = testCase.status ?: "Unknown Status"
-                                    def scriptContent = testCase.script
-
-                                    echo "Processing: ${issueKey} - ${name} (${status})"
-
-                                    if (scriptContent && scriptContent.trim()) {
-                                        // Validate feature file content
-                                        if (scriptContent.contains("Feature:")) {
-                                            def featureFileName = "src/test/resources/features/${issueKey}.feature"
-                                            writeFile file: featureFileName, text: scriptContent
-                                            echo "✅ Created: ${featureFileName}"
-                                            processedCount++
-                                        } else {
-                                            echo "⚠️ ${issueKey} script doesn't contain 'Feature:' - creating enhanced placeholder"
-                                            createEnhancedPlaceholder(issueKey, name, status, scriptContent)
-                                            processedCount++
-                                        }
-                                    } else {
-                                        echo "⚠️ ${issueKey} has no script content - creating placeholder"
-                                        createEnhancedPlaceholder(issueKey, name, status, "")
-                                        skippedCount++
-                                    }
-                                }
-
-                                echo "✅ Processing complete:"
-                                echo "   - Successfully processed: ${processedCount} test cases"
-                                echo "   - Placeholders created: ${skippedCount} test cases"
-                                echo "   - Total files created: ${processedCount + skippedCount}"
-
-                            } else {
-                                echo "❌ No test cases found with current criteria"
-                                echo "🔍 Troubleshooting suggestions:"
-                                echo "   1. Current TQL: '${params.ZEPHYR_TQL}'"
-                                echo "   2. Try alternative queries:"
-                                echo "      - Empty query (all test cases): ''"
-                                echo "      - Different status: 'status = \"Draft\"'"
-                                echo "      - Project only: 'projectKey = \"${params.ZEPHYR_PROJECT_KEY}\"'"
-                                echo "   3. Check if test cases exist in project '${params.ZEPHYR_PROJECT_KEY}'"
-
-                                if (params.CREATE_SAMPLE_IF_EMPTY) {
-                                    echo "Creating sample feature file to continue pipeline..."
-                                    createSampleFeatureFile()
-                                } else {
-                                    error "No test cases found. Set CREATE_SAMPLE_IF_EMPTY=true to continue with sample data."
-                                }
-                            }
-                        } catch (Exception e) {
-                            echo "❌ Failed to parse JSON response: ${e.getMessage()}"
-                            echo "Raw response: ${responseBody}"
-
-                            if (params.CREATE_SAMPLE_IF_EMPTY) {
-                                echo "Creating sample feature file due to parsing error..."
-                                createSampleFeatureFile()
-                            } else {
-                                error "JSON parsing failed. Set CREATE_SAMPLE_IF_EMPTY=true to continue with sample data."
-                            }
-                        }
+                        // ... rest of processing remains the same ...
                     }
-                }
-
-                // Confirm files were downloaded
-                script {
-                    def count = sh(script: "find src/test/resources/features -name '*.feature' 2>/dev/null | wc -l || echo '0'", returnStdout: true).trim()
-                    echo "📊 Final count: ${count} feature files in src/test/resources/features"
-
-                    if (count == '0') {
-                        echo "❌ No feature files found after processing"
-                        if (params.CREATE_SAMPLE_IF_EMPTY) {
-                            echo "Creating emergency sample feature file..."
-                            createSampleFeatureFile()
-                            // Recount
-                            count = sh(script: "find src/test/resources/features -name '*.feature' 2>/dev/null | wc -l || echo '0'", returnStdout: true).trim()
-                            echo "📊 After creating sample: ${count} feature files"
-                        }
-
-                        if (count == '0') {
-                            error "❌ Still no feature files available. Cannot proceed with tests."
-                        }
-                    }
-
-                    // List the feature files for verification
-                    sh """
-                        echo '📁 Feature files created:'
-                        find src/test/resources/features -name '*.feature' -exec echo '   {}' \\; | head -10
-                        echo ''
-                        echo '📝 Feature file sizes:'
-                        find src/test/resources/features -name '*.feature' -exec wc -l {} \\; | head -5
-                    """
                 }
             }
-        }
+
 
         stage('Use Existing Features') {
             when {
