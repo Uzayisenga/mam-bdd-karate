@@ -726,3 +726,4 @@ def createPlaceholderResults() {
     writeFile file: jsonFile, text: jsonContent
     echo "✅ Created a placeholder JSON test report to ensure the pipeline does not fail on missing reports."
 }
+}
