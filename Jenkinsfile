@@ -1492,4 +1492,3 @@ def createResultsZip(resultFile) {
         rm -rf temp_zip
     """
     }
-    }
