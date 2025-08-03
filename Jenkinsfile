@@ -219,7 +219,30 @@ pipeline {
 
                                         // Create valid Karate feature file from Zephyr's format
                                         def featureFileName = "src/test/resources/features/${issueKey}.feature"
-                                        def featureContent = """
+                                        // Replace the feature file creation section with this:
+                                        def featureContent = """Feature: ${name ?: 'Test ' + issueKey}
+
+                                        @${issueKey}
+                                        Scenario: ${name ?: 'Execute ' + issueKey}
+                                        ${convertZephyrStepsToGherkin(scriptContent)}
+                                        """
+
+                                        def convertZephyrStepsToGherkin(scriptContent) {
+                                            if (!scriptContent?.trim()) {
+                                                return "    Given this is a placeholder test step"
+                                            }
+
+                                            return scriptContent.split('\n')
+                                                .findAll { it.trim() && !it.startsWith('#') }
+                                                .collect { line ->
+                                                    def trimmed = line.trim()
+                                                    if (!trimmed.matches('^(Given|When|Then|And|But)\\s+.*')) {
+                                                        trimmed = "Given ${trimmed}"
+                                                    }
+                                                    return "    ${trimmed}"
+                                                }
+                                                .join('\n')
+                                        }
 # Zephyr Test Case: ${issueKey}
 # Status: ${status}
 # Name: ${name}
