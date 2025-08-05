@@ -1073,6 +1073,14 @@ pipeline {
                 script {
                     withCredentials([string(credentialsId: env.ZEPHYR_CREDENTIAL_ID, variable: 'ZEPHYR_TOKEN')]) {
                         echo "📤 Uploading test results to Zephyr Scale..."
+                        zephyrScale(
+                                            jiraInstance: 'https://mileand.atlassian.net',
+                                            projectKey: 'SCRUM',
+                                            testFramework: 'Karate',
+                                            testResultFile: 'target/karate-reports/*.json',
+                                            autoCreateTestCases: true
+                                        )
+
 
                         def baseUrl = params.ZEPHYR_ENDPOINT == 'us' ?
                             'https://api.zephyrscale.smartbear.com' :
