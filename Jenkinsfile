@@ -1072,18 +1072,36 @@ pipeline {
             steps {
                 script {
                     withCredentials([string(credentialsId: env.ZEPHYR_CREDENTIAL_ID, variable: 'ZEPHYR_TOKEN')]) {
-                        echo "📤 Uploading test results to Zephyr Scale with the official plugin step..."
-                        zephyrScale(
-                            jiraInstance: 'https://mileand.atlassian.net',
-                            projectKey: 'SCRUM',
-                            testFramework: 'Karate',
-                            testResultFile: 'target/karate-reports/*.json',
-                            autoCreateTestCases: true
-                        )
+                        echo "📤 Uploading test results to Zephyr Scale..."
+
+                        def baseUrl = params.ZEPHYR_ENDPOINT == 'us' ?
+                            'https://api.zephyrscale.smartbear.com' :
+                            'https://eu.api.zephyrscale.smartbear.com'
+
+                        echo "Using endpoint: ${baseUrl}"
+
+                        // Find and prepare test results
+                        def resultFile = findTestResultFile()
+                        if (!resultFile) {
+                            echo "❌ No test results found. Creating minimal report..."
+                            resultFile = createMinimalTestResults()
+                        }
+
+                        echo "✅ Using result file: ${resultFile}"
+
+                        // Create ZIP file for upload
+                        def zipFile = createResultsZip(resultFile)
+
+                        // Upload to Zephyr
+                        uploadToZephyr(baseUrl, zipFile)
+
+                        // Cleanup
+                        sh "rm -f ${zipFile}"
                     }
                 }
             }
-
+        }
+    }
 
     post {
         always {
