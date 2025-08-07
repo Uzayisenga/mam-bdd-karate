@@ -875,8 +875,6 @@ pipeline {
 
                         echo "HTTP Status: ${httpStatus}"
                         echo "Response Body (first 500 chars): ${responseBody.take(500)}..."
-
-                        // Handle API errors
                         if (httpStatus != "200") {
                             echo "❌ API call failed with HTTP status: ${httpStatus}"
                             echo "Full response: ${responseBody}"
@@ -917,8 +915,6 @@ pipeline {
 
                             if (json.total && json.total > 0 && json.values && json.values.size() > 0) {
                                 echo "✅ Found ${json.total} test cases. Processing ${json.values.size()}..."
-
-                                // Create features directory
                                 sh "mkdir -p src/test/resources/features"
 
                                 def processedCount = 0
@@ -934,7 +930,6 @@ pipeline {
                                         echo "Processing: ${issueKey} - ${name} (${status})"
 
                                         if (testScriptUrl) {
-                                            // Download test script content
                                             def scriptContent = downloadTestScript(testScriptUrl)
                                             createKarateFeatureFile(issueKey, name, status, scriptContent)
                                             processedCount++
@@ -1087,8 +1082,6 @@ pipeline {
                             'https://eu.api.zephyrscale.smartbear.com'
 
                         echo "Using endpoint: ${baseUrl}"
-
-                        // Find and prepare test results
                         def resultFile = findTestResultFile()
                         if (!resultFile) {
                             echo "❌ No test results found. Creating minimal report..."
@@ -1096,11 +1089,7 @@ pipeline {
                         }
 
                         echo "✅ Using result file: ${resultFile}"
-
-                        // Create ZIP file for upload
                         def zipFile = createResultsZip(resultFile)
-
-                        // Upload to Zephyr
                         uploadToZephyr(baseUrl, zipFile)
 
                         // Cleanup
@@ -1115,11 +1104,7 @@ pipeline {
         always {
             script {
                 echo "📊 Publishing test results and artifacts..."
-
-                // Publish JUnit results
                 junit testResults: 'target/surefire-reports/**/*.xml', allowEmptyResults: true
-
-                // Publish Cucumber results
                 cucumber(
                     jsonReportDirectory: 'target/karate-reports',
                     fileIncludePattern: '**/*.json',
@@ -1499,4 +1484,4 @@ def createResultsZip(resultFile) {
         cd ..
         rm -rf temp_zip
     """
-    }
+    }+
